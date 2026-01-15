@@ -46,7 +46,7 @@ const OTPScreen = ({ navigation }: any) => {
 
     const handleVerify = () => {
         if (!isOtpComplete) return;
-        navigation.navigate('Home');
+        navigation.navigate('LocationSearch');
     };
 
     return (
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: verticalScale(10),
-        bottom: verticalScale(6)
+        bottom: verticalScale(10)
     },
 
     backText: {

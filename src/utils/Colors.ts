@@ -13,6 +13,8 @@ const Colors = {
     white: '#fff',
     google: '#fff',
     apple: '#fff',
+    textblue: '#7B3AED',
+    dullgray: '#364153'
 };
 
 export default Colors;

@@ -3,6 +3,9 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AuthStack from '../screen/auth/AuthStack';
 import BottomTabNavigator from './BottomTabNavigator';
+import SearchScreen from '../screen/SearchScreen';
+import ProductScreen from '../screen/ProductScreen';
+
 
 const RootStack = createNativeStackNavigator();
 
@@ -12,6 +15,8 @@ const AppNavigator = () => {
             <RootStack.Navigator screenOptions={{ headerShown: false }}>
                 <RootStack.Screen name="Auth" component={AuthStack} />
                 <RootStack.Screen name="BottomTab" component={BottomTabNavigator} />
+                <RootStack.Screen name="Search" component={SearchScreen} />
+                <RootStack.Screen name="Products" component={ProductScreen} />
             </RootStack.Navigator>
         </NavigationContainer>
     );

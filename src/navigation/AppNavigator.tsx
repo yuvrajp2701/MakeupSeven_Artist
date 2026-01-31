@@ -5,6 +5,7 @@ import AuthStack from '../screen/auth/AuthStack';
 import BottomTabNavigator from './BottomTabNavigator';
 import SearchScreen from '../screen/SearchScreen';
 import ProductScreen from '../screen/ProductScreen';
+import ArtistStackNavigator from './ArtistStackNavigator';
 
 
 const RootStack = createNativeStackNavigator();
@@ -13,6 +14,7 @@ const AppNavigator = () => {
     return (
         <NavigationContainer>
             <RootStack.Navigator screenOptions={{ headerShown: false }}>
+                <RootStack.Screen name="Artist" component={ArtistStackNavigator} />
                 <RootStack.Screen name="Auth" component={AuthStack} />
                 <RootStack.Screen name="BottomTab" component={BottomTabNavigator} />
                 <RootStack.Screen name="Search" component={SearchScreen} />

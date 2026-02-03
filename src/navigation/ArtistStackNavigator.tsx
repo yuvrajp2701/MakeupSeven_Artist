@@ -7,6 +7,8 @@ import EditServiceScreen from '../screen/artist/EditServiceScreen';
 import ArtistAllReviewsScreen from '../screen/artist/ArtistAllReviewsScreen';
 import EditRecentWorksScreen from '../screen/artist/EditRecentWorksScreen';
 import BookingDetailsScreen from '../screen/artist/BookingDetailsScreen';
+import ServiceOngoingScreen from '../screen/artist/ServiceOngoingScreen';
+import CustomerOtpScreen from '../screen/artist/CustomerOtpScreen';
 
 
 
@@ -39,10 +41,18 @@ const ArtistStackNavigator = () => {
         name="EditRecentWorks"
         component={EditRecentWorksScreen}
       />
-<Stack.Screen
-  name="BookingDetails"
-  component={BookingDetailsScreen}
-/>
+      <Stack.Screen
+        name="BookingDetails"
+        component={BookingDetailsScreen}
+      />
+      <Stack.Screen
+        name="ServiceOngoing"
+        component={ServiceOngoingScreen}
+      />
+      <Stack.Screen
+        name="CustomerOtp"
+        component={CustomerOtpScreen}
+      />
 
     </Stack.Navigator>
   );

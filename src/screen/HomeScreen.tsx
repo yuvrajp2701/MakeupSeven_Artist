@@ -29,7 +29,7 @@ const HomeScreen = () => {
           <ArtistList />
         </ScrollView>
       </LinearGradient>
-      <BottomTabBar active="Home" />
+      {/* <BottomTabBar active="Home" /> */}
     </ScreenView>
   );
 };

@@ -75,7 +75,7 @@ const ArtistBookingsScreen = () => {
   address="123 Main St, New York"
   price="₹1299"
   status="Pending"
-  onPressCall={() =>
+    onPressCard={() =>
     navigation.navigate('BookingDetails', {
       name: 'Sarah Johnson',
       service: 'Wedding Makeup',
@@ -98,7 +98,7 @@ const ArtistBookingsScreen = () => {
   address="456 Park Ave, Brooklyn"
   price="₹799"
   status="Confirmed"
-  onPressCall={() =>
+    onPressCard={() =>
     navigation.navigate('BookingDetails', {
       name: 'Emily Davis',
       service: 'Bridal Hair Styling',
@@ -132,10 +132,15 @@ const BookingCard = ({
   address,
   price,
   status,
-  onPressCall,
+  onPressCard,
 }: any) => (
 
-  <View style={styles.card}>
+  <TouchableOpacity
+  activeOpacity={0.9}
+  style={styles.card}
+  onPress={onPressCard}
+>
+
     <Image source={image} style={styles.cardImage} />
 
     <View style={styles.cardContent}>
@@ -184,14 +189,15 @@ const BookingCard = ({
       <View style={styles.footerRow}>
         <Text style={styles.price}>{price}</Text>
 
-<TouchableOpacity style={styles.callBtn} onPress={onPressCall}>
+<TouchableOpacity style={styles.callBtn} activeOpacity={0.8}>
   <FontAwesome name="phone" size={16} color="#000" />
 </TouchableOpacity>
 
 
+
       </View>
     </View>
-  </View>
+ </TouchableOpacity>
 );
 
 /* ---------------- STYLES ---------------- */

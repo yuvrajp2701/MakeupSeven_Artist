@@ -8,6 +8,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 import type { RouteProp } from '@react-navigation/native';
 import ArtistsScreen from '../screens/artists/ArtistsScreen';
+import CreateArtistProfileScreen from '../screen/artist/CreateArtistProfileScreen';
 
 
 
@@ -62,7 +63,7 @@ const BottomTabNavigator = () => (
         <Tab.Screen name="Home" component={HomeScreen} />
         <Tab.Screen name="Artists" component={ArtistsScreen} />
         <Tab.Screen name="Bookings" component={BookingsScreen} />
-        <Tab.Screen name="Profile" component={ProfileScreen} />
+        <Tab.Screen name="Profile" component={CreateArtistProfileScreen} />
     </Tab.Navigator>
 );
 

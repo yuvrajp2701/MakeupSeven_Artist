@@ -9,6 +9,7 @@ import ArtistBookingsScreen from '../screen/artist/ArtistBookingsScreen';
 import ArtistPortfolioScreen from '../screen/artist/ArtistPortfolioScreen';
 import ArtistWalletScreen from '../screen/artist/ArtistWalletScreen';
 import ArtistCoursesScreen from '../screen/artist/ArtistCoursesScreen';
+import ArtistBookingsStackNavigator from './ArtistBookingsStackNavigator';
 
 type ArtistTabParamList = {
   Home: undefined;
@@ -65,7 +66,10 @@ const ArtistBottomTabNavigator = () => (
   >
     <Tab.Screen name="Home" component={ArtistHomeScreen} />
     <Tab.Screen name="Portfolio" component={ArtistPortfolioScreen} />
-    <Tab.Screen name="Bookings" component={ArtistBookingsScreen} />
+    <Tab.Screen
+      name="Bookings"
+      component={ArtistBookingsStackNavigator}
+    />
     <Tab.Screen name="Courses" component={ArtistCoursesScreen} />
     <Tab.Screen name="Wallet" component={ArtistWalletScreen} />
   </Tab.Navigator>

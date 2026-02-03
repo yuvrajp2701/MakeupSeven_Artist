@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,9 @@ const BookingDetailsScreen = () => {
   const navigation = useNavigation<any>();
   const { params }: any = useRoute();
 
+  // 🔥 booking state
+  const [isAccepted, setIsAccepted] = useState(false);
+
   return (
     <ScreenView>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -27,7 +30,9 @@ const BookingDetailsScreen = () => {
 
         {/* STATUS */}
         <View style={styles.statusPill}>
-          <Text style={styles.statusText}>Awaiting Confirmation</Text>
+          <Text style={styles.statusText}>
+            {isAccepted ? 'Confirmed' : 'Awaiting Confirmation'}
+          </Text>
         </View>
 
         <View style={styles.container}>
@@ -65,25 +70,65 @@ const BookingDetailsScreen = () => {
             </View>
           </View>
 
-          {/* CUSTOMER CONTACT */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Customer Contact</Text>
+          {/* ACTIONS */}
+          {!isAccepted && (
+            <View style={styles.card}>
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={styles.acceptBtn}
+                  onPress={() => setIsAccepted(true)}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.acceptText}>Accept</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity style={styles.callBtn}>
-              <FontAwesome name="phone" size={16} color="#7C3AED" />
-              <Text style={styles.callText}>Call Customer</Text>
-            </TouchableOpacity>
-          </View>
+                <TouchableOpacity
+                  style={styles.declineOutlineBtn}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.declineOutlineText}>Decline</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
-          {/* DECLINE */}
-          <TouchableOpacity style={styles.declineBtn}>
-            <Text style={styles.declineText}>Decline</Text>
-          </TouchableOpacity>
+          )}
+
+          {/* CUSTOMER CONTACT (ONLY AFTER ACCEPT) */}
+{isAccepted && (
+  <>
+    {/* CUSTOMER CONTACT */}
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Customer Contact</Text>
+
+      <TouchableOpacity style={styles.callBtn}>
+        <FontAwesome name="phone" size={16} color="#7C3AED" />
+        <Text style={styles.callText}>Call Customer</Text>
+      </TouchableOpacity>
+    </View>
+
+    {/* START SERVICE */}
+<TouchableOpacity
+  style={styles.startServiceBtn}
+  onPress={() =>
+    navigation.navigate('ServiceOngoing', {
+      name: params.name,
+      service: params.service,
+      price: params.price,
+    })
+  }
+>
+  <Text style={styles.startServiceText}>Start Service</Text>
+</TouchableOpacity>
+
+  </>
+)}
+
         </View>
       </ScrollView>
     </ScreenView>
   );
 };
+
 
 export default BookingDetailsScreen;
 
@@ -105,6 +150,58 @@ const InfoRow = ({ icon, label, value }: any) => (
 /* ---------------- STYLES ---------------- */
 
 const styles = StyleSheet.create({
+  /* START SERVICE */
+startServiceBtn: {
+  backgroundColor: '#10B981', // green = action started
+  paddingVertical: 18,
+  borderRadius: 16,
+  alignItems: 'center',
+  marginBottom: 30,
+},
+
+startServiceText: {
+  color: '#fff',
+  fontSize: 17,
+  fontWeight: '600',
+},
+
+  /* ACTION CARD */
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+
+  acceptBtn: {
+    flex: 1,
+    backgroundColor: '#7C3AED',
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+
+  acceptText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  declineOutlineBtn: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+
+  declineOutlineText: {
+    color: '#6B7280',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+
+
   /* HEADER */
   header: {
     backgroundColor: '#EEE9FF',

@@ -14,11 +14,11 @@ const AppNavigator = () => {
     return (
         <NavigationContainer>
             <RootStack.Navigator screenOptions={{ headerShown: false }}>
-                <RootStack.Screen name="Artist" component={ArtistStackNavigator} />
-                <RootStack.Screen name="Auth" component={AuthStack} />
                 <RootStack.Screen name="BottomTab" component={BottomTabNavigator} />
+                <RootStack.Screen name="Auth" component={AuthStack} />
                 <RootStack.Screen name="Search" component={SearchScreen} />
                 <RootStack.Screen name="Products" component={ProductScreen} />
+                <RootStack.Screen name="Artist" component={ArtistStackNavigator} />
             </RootStack.Navigator>
         </NavigationContainer>
     );

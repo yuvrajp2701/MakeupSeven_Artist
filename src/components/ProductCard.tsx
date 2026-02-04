@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
+import { useNavigation } from '@react-navigation/native';
 
 interface Props {
   item: {
@@ -13,11 +14,22 @@ interface Props {
 }
 
 const ProductCard: React.FC<Props> = ({ item }) => {
+  const navigation = useNavigation<any>();
   return (
     <View style={styles.card}>
       <Image source={item.image} style={styles.image} />
 
-      <TouchableOpacity style={styles.addBtn}>
+      <TouchableOpacity
+        style={styles.addBtn}
+        onPress={() => navigation.navigate('CourseCheckout', {
+          course: {
+            title: item.title,
+            academy: 'MakeupSeven Academy',
+            price: parseInt(item.price.replace('₹', '').replace(',', '')),
+            image: item.image
+          }
+        })}
+      >
         <Text style={styles.addText}>Add</Text>
       </TouchableOpacity>
 
@@ -46,7 +58,7 @@ const styles = StyleSheet.create({
     padding: 8,
     marginBottom: 9,
     marginHorizontal: 4,
-    marginTop: 5,   
+    marginTop: 5,
     borderWidth: 1,
     borderColor: '#FFE1CF',
   },

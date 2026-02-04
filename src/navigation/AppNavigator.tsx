@@ -6,6 +6,10 @@ import BottomTabNavigator from './BottomTabNavigator';
 import SearchScreen from '../screen/SearchScreen';
 import ProductScreen from '../screen/ProductScreen';
 import ArtistStackNavigator from './ArtistStackNavigator';
+import CourseCheckoutScreen from '../screen/CourseCheckoutScreen';
+import PaymentSuccessScreen from '../screen/PaymentSuccessScreen';
+import CourseDetailsScreen from '../screen/CourseDetailsScreen';
+import CoursePlayerScreen from '../screen/CoursePlayerScreen';
 
 
 const RootStack = createNativeStackNavigator();
@@ -16,9 +20,13 @@ const AppNavigator = () => {
             <RootStack.Navigator screenOptions={{ headerShown: false }}>
                 <RootStack.Screen name="BottomTab" component={BottomTabNavigator} />
                 <RootStack.Screen name="Auth" component={AuthStack} />
-                <RootStack.Screen name="Search" component={SearchScreen} />
                 <RootStack.Screen name="Products" component={ProductScreen} />
+                <RootStack.Screen name="Search" component={SearchScreen} />
                 <RootStack.Screen name="Artist" component={ArtistStackNavigator} />
+                <RootStack.Screen name="CourseCheckout" component={CourseCheckoutScreen} />
+                <RootStack.Screen name="CourseDetails" component={CourseDetailsScreen} />
+                <RootStack.Screen name="CoursePlayer" component={CoursePlayerScreen} />
+                <RootStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
             </RootStack.Navigator>
         </NavigationContainer>
     );

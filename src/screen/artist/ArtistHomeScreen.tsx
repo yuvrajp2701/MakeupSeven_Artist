@@ -11,7 +11,7 @@ import FontAwesome from '@react-native-vector-icons/fontawesome';
 import LinearGradient from 'react-native-linear-gradient';
 import ScreenView from '../../utils/ScreenView';
 
-const ArtistHomeScreen = () => {
+const ArtistHomeScreen = ({ navigation }: any) => {
   return (
     <ScreenView>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -24,7 +24,7 @@ const ArtistHomeScreen = () => {
               <Text style={styles.name}>Priya Sharma</Text>
             </View>
 
-            <TouchableOpacity style={styles.bell}>
+            <TouchableOpacity style={styles.bell} onPress={() => navigation.navigate('Notifications')}>
               <FontAwesome name="bell-o" size={20} color="#000" />
               <View style={styles.dot} />
             </TouchableOpacity>
@@ -102,8 +102,8 @@ const ArtistHomeScreen = () => {
             icon="star"
             title="New 5-Star Review"
             sub="Jessica Miller left a review"
-          timeAgo="2 hours ago"
-         />
+            timeAgo="2 hours ago"
+          />
 
         </View>
       </ScrollView>
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
     padding: 30,
   },
   quickTitle: { color: '#fff', fontSize: 18, fontWeight: '600', marginTop: 12 },
-  quickSub: { color: '#E9D5FF', fontSize: 14, marginTop:7 },
+  quickSub: { color: '#E9D5FF', fontSize: 14, marginTop: 7 },
   quickTitleDark: { fontSize: 18, fontWeight: '600', marginVertical: 10 },
   quickSubDark: { fontSize: 13, color: '#6B7280' },
 
@@ -266,27 +266,27 @@ const styles = StyleSheet.create({
     marginVertical: 23,
   },
   sectionActionRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-},
-bookingImageWrapper: {
-  width: 80,
-  height: 80,
-  borderRadius: 10,
-  overflow: 'hidden',
-  marginRight: 12,
-  backgroundColor: '#F3F4F6',
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bookingImageWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginRight: 12,
+    backgroundColor: '#F3F4F6',
+  },
 
-bookingImage: {
-  width: '100%',
-  height: '100%',
-  resizeMode: 'cover',
-},
+  bookingImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
 
-bookingContent: {
-  flex: 1,
-},
+  bookingContent: {
+    flex: 1,
+  },
 
   sectionTitle: { fontSize: 20, fontWeight: '400' },
   sectionAction: { color: '#7C3AED', fontSize: 13 },
@@ -300,54 +300,54 @@ bookingContent: {
     marginBottom: 20,
     elevation: 2,
   },
-  bookingName: { fontWeight: '500',fontSize: 17,marginTop:5 },
-  bookingSub: { fontSize: 15, color: '#6B7280',marginTop:9 },
-  bookingTime: { fontSize: 13, color: '#9CA3AF',marginBottom:15, },
-  bookingPrice: { color: '#7C3AED', fontWeight: '500',fontSize: 20, alignSelf: 'center', },
+  bookingName: { fontWeight: '500', fontSize: 17, marginTop: 5 },
+  bookingSub: { fontSize: 15, color: '#6B7280', marginTop: 9 },
+  bookingTime: { fontSize: 13, color: '#9CA3AF', marginBottom: 15, },
+  bookingPrice: { color: '#7C3AED', fontWeight: '500', fontSize: 20, alignSelf: 'center', },
 
   earnings: {
     borderRadius: 20,
     padding: 22,
     marginBottom: 25,
-    marginTop:-17,
+    marginTop: -17,
   },
-  earningsLabel: { color: '#E9D5FF',fontSize: 16, },
+  earningsLabel: { color: '#E9D5FF', fontSize: 16, },
   earningsValue: { color: '#fff', fontSize: 32, fontWeight: '500' },
-  earningsSub: { color: '#DDD6FE', fontSize: 15,marginTop:20, },
+  earningsSub: { color: '#DDD6FE', fontSize: 15, marginTop: 20, },
 
   activityCard: {
-flexDirection: 'column',
+    flexDirection: 'column',
     backgroundColor: '#fff',
     padding: 14,
-    paddingLeft:19,
+    paddingLeft: 19,
     borderRadius: 14,
     marginBottom: 32,
-    marginTop:-11,
+    marginTop: -11,
     elevation: 2,
   },
-  activityTitle: { fontWeight: '500',fontSize:17, },
+  activityTitle: { fontWeight: '500', fontSize: 17, },
   activitySub: { fontSize: 14, color: '#6B7280' },
   activityAmount: {
     marginLeft: 'auto',
-    fontSize:20,
+    fontSize: 20,
     color: '#10B981',
     fontWeight: '600',
   },
-activityTopRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-},
-activityContent: {
-  marginLeft: 17,
-  flex: 1,
-},
+  activityTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activityContent: {
+    marginLeft: 17,
+    flex: 1,
+  },
 
-activityTime: {
-  marginTop: 5,
-  fontSize: 12,
-  marginLeft:45,
-  marginBottom:9,
-  color: '#9CA3AF',
-},
+  activityTime: {
+    marginTop: 5,
+    fontSize: 12,
+    marginLeft: 45,
+    marginBottom: 9,
+    color: '#9CA3AF',
+  },
 
 });

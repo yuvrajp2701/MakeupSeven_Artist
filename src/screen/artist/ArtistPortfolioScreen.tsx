@@ -12,8 +12,8 @@ import {
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import ScreenView from '../../utils/ScreenView';
 const { width } = Dimensions.get('window');
-const CAROUSEL_SIDE_GAP = 16; // Figma-like inset
-const CAROUSEL_WIDTH = width - CAROUSEL_SIDE_GAP * 2;
+const ITEM_MARGIN = 16;
+const CAROUSEL_WIDTH = width - (ITEM_MARGIN * 2);
 
 
 const carouselImages = [
@@ -78,10 +78,32 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const sliderRef = useRef<FlatList>(null);
 
+  // Auto-scroll effect
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      let nextIndex = activeIndex + 1;
+      if (nextIndex >= carouselImages.length) {
+        nextIndex = 0;
+      }
+      setActiveIndex(nextIndex);
+      sliderRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+    }, 1000); // 1 second interval
+
+    return () => clearInterval(interval);
+  }, [activeIndex]);
+
   const onScrollEnd = (e: any) => {
-    const index = Math.round(e.nativeEvent.contentOffset.x / width);
+    // Determine index based on scroll position + small offset for robustness
+    const contentOffsetX = e.nativeEvent.contentOffset.x;
+    const index = Math.round(contentOffsetX / CAROUSEL_WIDTH);
     setActiveIndex(index);
   };
+
+  const getItemLayout = (_: any, index: number) => ({
+    length: CAROUSEL_WIDTH,
+    offset: CAROUSEL_WIDTH * index,
+    index,
+  });
 
   return (
     <ScreenView>
@@ -102,15 +124,19 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
               ref={sliderRef}
               data={carouselImages}
               horizontal
-              pagingEnabled
               showsHorizontalScrollIndicator={false}
               keyExtractor={(_, i) => i.toString()}
               onMomentumScrollEnd={onScrollEnd}
-              contentContainerStyle={{ paddingHorizontal: CAROUSEL_SIDE_GAP }}
               snapToInterval={CAROUSEL_WIDTH}
               decelerationRate="fast"
+              pagingEnabled={false} // Disabled to allow custom snapWidth with margins
+              getItemLayout={getItemLayout}
+              contentContainerStyle={{ paddingHorizontal: ITEM_MARGIN }}
               renderItem={({ item }) => (
-                <Image source={item} style={styles.carouselImage} />
+                <View style={{ width: CAROUSEL_WIDTH, alignItems: 'center' }}>
+                  {/* Wrapped in a View to enforce width per item */}
+                  <Image source={item} style={styles.carouselImage} />
+                </View>
               )}
             />
 
@@ -366,9 +392,9 @@ const styles = StyleSheet.create({
   },
 
   carouselImage: {
-    width: CAROUSEL_WIDTH,
-    height: 200,          // slightly shorter like Figma
-    borderRadius: 18,     // rounded corners visible
+    width: '100%', // Take full width of the parent container (which is CAROUSEL_WIDTH)
+    height: 180, // Reduced height for smaller look
+    borderRadius: 18,
     resizeMode: 'cover',
   },
 

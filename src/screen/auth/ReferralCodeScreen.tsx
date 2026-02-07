@@ -29,7 +29,7 @@ const ReferralCodeScreen = ({ navigation }: any) => {
                         onPress={() => {
                             navigation.reset({
                                 index: 0,
-                                routes: [{ name: 'BottomTab' }],
+                                routes: [{ name: 'Artist' }],
                             });
                         }}
                     >

@@ -50,6 +50,7 @@ const CreateArtistProfileScreen = () => {
 
 
   // Service State
+  const [serviceCategory, setServiceCategory] = useState('');
   const [serviceName, setServiceName] = useState('');
   const [serviceDesc, setServiceDesc] = useState('');
   const [serviceDuration, setServiceDuration] = useState('');
@@ -65,6 +66,15 @@ const CreateArtistProfileScreen = () => {
   const [procedureModalVisible, setProcedureModalVisible] = useState(false);
   const [procedures, setProcedures] = useState([{ title: '', description: '', expanded: true }]);
   const [proceduresSaved, setProceduresSaved] = useState(false);
+
+  // Service Images State
+  const [servicePrimaryImages, setServicePrimaryImages] = useState([
+    require('../../asset/images/facial.png'),
+  ]);
+  const [serviceOtherImages, setServiceOtherImages] = useState([
+    require('../../asset/images/artists1.png'),
+    require('../../asset/images/artists2.png'),
+  ]);
 
   // Verification Modal State
   const [verificationModalVisible, setVerificationModalVisible] = useState(false);
@@ -109,16 +119,23 @@ const CreateArtistProfileScreen = () => {
         </View>
 
         {/* STEPPER LABELS (BELOW LINE) */}
+        {/* STEPPER LABELS (BELOW LINE) */}
         <View style={styles.tabsRow}>
-          <Text style={[styles.tabText, step === 0 && styles.activeTabText]}>
-            Profile
-          </Text>
-          <Text style={[styles.tabText, step === 1 && styles.activeTabText]}>
-            Portfolio
-          </Text>
-          <Text style={[styles.tabText, step === 2 && styles.activeTabText]}>
-            Services
-          </Text>
+          <TouchableOpacity style={styles.tabItem} onPress={() => setStep(0)}>
+            <Text style={[styles.tabText, step === 0 && styles.activeTabText, { width: '100%' }]}>
+              Profile
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.tabItem} onPress={() => setStep(1)}>
+            <Text style={[styles.tabText, step === 1 && styles.activeTabText, { width: '100%' }]}>
+              Portfolio
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.tabItem} onPress={() => setStep(2)}>
+            <Text style={[styles.tabText, step === 2 && styles.activeTabText, { width: '100%' }]}>
+              Services
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -268,7 +285,9 @@ const CreateArtistProfileScreen = () => {
                 require('../../asset/images/artists2.png'),
                 require('../../asset/images/bestartists1.png'),
               ].map((img, index) => (
-                <Image key={index} source={img} style={styles.gridImage} resizeMode="cover" />
+                <View key={index} style={styles.gridImageWrapper}>
+                  <Image source={img} style={styles.gridImage} resizeMode="cover" />
+                </View>
               ))}
             </View>
           </View>
@@ -296,6 +315,13 @@ const CreateArtistProfileScreen = () => {
 
               {serviceExpanded && (
                 <View style={styles.serviceBody}>
+                  <DropdownField
+                    label="Service Category"
+                    value={serviceCategory}
+                    placeholder="Select category"
+                    onPress={(layout: any) => openDropdown(['Makeup', 'Hair Styling', 'Nail Art', 'Mehendi'], setServiceCategory, layout)}
+                  />
+
                   <InputGroup
                     label="Service Name"
                     placeholder="Bridal Makeup"
@@ -339,26 +365,63 @@ const CreateArtistProfileScreen = () => {
                     </View>
                   </View>
 
-                  <Text style={styles.fieldLabel}>Upload service images</Text>
-                  <TouchableOpacity style={styles.uploadBox} activeOpacity={0.8}>
-                    <View style={styles.uploadIconCircle}>
-                      <FontAwesome name="upload" size={20} color="#7C3AED" />
-                    </View>
-                    <Text style={styles.uploadTitle}>Upload Images</Text>
-                    <Text style={styles.uploadSubtitle}>PNG, JPG up to 10MB each</Text>
-                  </TouchableOpacity>
+                  {/* --- PRIMARY SERVICE IMAGES --- */}
+                  <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 4 }]}>Primary Service Images (Max 3)</Text>
+                  <Text style={[styles.helperText, { marginBottom: 12 }]}>Main wide shots for this service</Text>
 
-                  <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>Services images</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.serviceImagesRow}>
-                    {[
-                      require('../../asset/images/artists1.png'),
-                      require('../../asset/images/artists2.png'),
-                      require('../../asset/images/bestartists1.png'),
-                      require('../../asset/images/facial.png'),
-                    ].map((img, index) => (
-                      <Image key={index} source={img} style={styles.serviceImageItem} resizeMode="cover" />
+                  {servicePrimaryImages.length < 3 && (
+                    <TouchableOpacity style={styles.uploadBox} activeOpacity={0.8}>
+                      <View style={styles.uploadIconCircle}>
+                        <FontAwesome name="upload" size={20} color="#7C3AED" />
+                      </View>
+                      <Text style={styles.uploadTitle}>Upload Primary Image</Text>
+                      <Text style={styles.uploadSubtitle}>16:9 Aspect Ratio</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <View style={styles.primaryImagesList}>
+                    {servicePrimaryImages.map((img, index) => (
+                      <View key={index} style={styles.primaryImageWrapper}>
+                        <Image source={img} style={styles.primaryImageItem} resizeMode="cover" />
+                        <TouchableOpacity style={styles.removeBtn} onPress={() => {
+                          const newImgs = [...servicePrimaryImages];
+                          newImgs.splice(index, 1);
+                          setServicePrimaryImages(newImgs);
+                        }}>
+                          <FontAwesome name="times" size={14} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
                     ))}
-                  </ScrollView>
+                  </View>
+
+                  {/* --- OTHER SERVICE IMAGES --- */}
+                  <Text style={[styles.sectionTitle, { marginTop: 12, marginBottom: 4 }]}>Service Gallery (Max 6)</Text>
+                  <Text style={[styles.helperText, { marginBottom: 12 }]}>Additional details or angles</Text>
+
+                  {serviceOtherImages.length < 6 && (
+                    <TouchableOpacity style={styles.uploadBox} activeOpacity={0.8}>
+                      <View style={styles.uploadIconCircle}>
+                        <FontAwesome name="upload" size={20} color="#7C3AED" />
+                      </View>
+                      <Text style={styles.uploadTitle}>Upload Gallery Image</Text>
+                      <Text style={styles.uploadSubtitle}>Square images</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <View style={styles.imageGrid}>
+                    {serviceOtherImages.map((img, index) => (
+                      <View key={index} style={styles.gridImageWrapper}>
+                        <Image source={img} style={styles.gridImage} resizeMode="cover" />
+                        <TouchableOpacity style={styles.removeBtnSmall} onPress={() => {
+                          const newImgs = [...serviceOtherImages];
+                          newImgs.splice(index, 1);
+                          setServiceOtherImages(newImgs);
+                        }}>
+                          <FontAwesome name="times" size={12} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
 
                   {/* EXTRA SERVICE INFO */}
                   <Text style={[styles.sectionTitle, { fontSize: 16, marginTop: 10, marginBottom: 12 }]}>Extra service information</Text>
@@ -441,15 +504,20 @@ const CreateArtistProfileScreen = () => {
           style={styles.saveButton}
           activeOpacity={0.9}
           onPress={() => {
-            if (step < 2) {
-              setStep((prev) => (prev + 1) as any);
-            } else {
-              // Show Success Modal
+            if (step === 0) {
+              // Profile Step - Submit triggers review modal immediately
               setVerificationModalVisible(true);
+            } else {
+              // Other steps
+              if (step < 2) {
+                setStep((prev) => (prev + 1) as any);
+              } else {
+                setVerificationModalVisible(true);
+              }
             }
           }}
         >
-          <Text style={styles.saveButtonText}>Save and continue</Text>
+          <Text style={styles.saveButtonText}>{step === 0 ? 'Submit' : 'Save and continue'}</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
@@ -660,11 +728,62 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   gridImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+  },
+  gridImageWrapper: {
     width: (width - 32 - 24) / 3,
     height: (width - 32 - 24) / 3,
-    borderRadius: 12,
     marginBottom: 12,
+    position: 'relative',
+  },
+  subSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  subSectionHelper: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 16,
+  },
+  primaryImagesList: {
+    marginBottom: 10,
+  },
+  primaryImageWrapper: {
+    marginBottom: 16,
+    position: 'relative',
+  },
+  primaryImageItem: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
     backgroundColor: '#F3F4F6',
+  },
+  removeBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeBtnSmall: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   // Service Step

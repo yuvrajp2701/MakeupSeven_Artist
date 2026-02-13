@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, SafeAreaView, Modal, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, SafeAreaView, Modal, TextInput, Alert } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../../utils/Colors';
@@ -33,6 +33,15 @@ const TRANSACTIONS = [
     type: 'incoming'
   },
   {
+    id: '5',
+    title: 'Commission Deduction',
+    name: 'Cash Payment - Hair Cut',
+    date: '2024-12-07 • 4:00 PM',
+    amount: '-₹200',
+    status: 'Completed',
+    type: 'outgoing'
+  },
+  {
     id: '4',
     title: 'Course Purchase',
     name: 'Editorial & Fashion Makeup',
@@ -51,6 +60,11 @@ const ArtistWalletScreen = () => {
   const [withdrawAmount, setWithdrawAmount] = React.useState('');
 
   const handleWithdraw = () => {
+    const amount = parseFloat(withdrawAmount);
+    if (!amount || amount < 500) {
+      Alert.alert('Invalid Amount', 'Minimum withdrawal amount is ₹500.');
+      return;
+    }
     // Here you would add the actual withdraw logic
     setSuccessModalVisible(true);
   };
@@ -212,7 +226,7 @@ const ArtistWalletScreen = () => {
                 placeholderTextColor="#999"
                 keyboardType="numeric"
                 value={withdrawAmount}
-                onChangeText={setWithdrawAmount}
+                onChangeText={(text) => setWithdrawAmount(text.replace(/[^0-9]/g, ''))}
               />
             </View>
 
@@ -229,12 +243,16 @@ const ArtistWalletScreen = () => {
 
             <View style={styles.infoBox}>
               <Text style={styles.infoText}>• Withdrawal usually takes 1-3 business days</Text>
-              <Text style={styles.infoText}>• Minimum withdrawal amount: ₹100</Text>
+              <Text style={styles.infoText}>• Minimum withdrawal amount: ₹500</Text>
               <Text style={styles.infoText}>• No processing fees</Text>
             </View>
 
-            <TouchableOpacity style={styles.confirmButton} onPress={handleWithdraw}>
-              <Text style={styles.confirmButtonText}>Withdraw ₹{withdrawAmount || '0'}</Text>
+            <TouchableOpacity
+              style={[styles.confirmButton, { backgroundColor: withdrawAmount ? '#8855FF' : '#D1D5DB' }]}
+              onPress={handleWithdraw}
+              disabled={!withdrawAmount}
+            >
+              <Text style={styles.confirmButtonText}>Withdraw</Text>
             </TouchableOpacity>
           </View>
         </View>

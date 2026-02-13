@@ -12,6 +12,9 @@ import LinearGradient from 'react-native-linear-gradient';
 import ScreenView from '../../utils/ScreenView';
 
 const ArtistHomeScreen = ({ navigation }: any) => {
+  // Assuming new user state for now
+  const isNewUser = false;
+
   return (
     <ScreenView>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -32,78 +35,104 @@ const ArtistHomeScreen = ({ navigation }: any) => {
 
           {/* Stats */}
           <View style={styles.statsRow}>
-            <StatCard title="This Month" value="₹3,240" icon="rupee" />
-            <StatCard title="Rating" value="4.9" icon="star-o" />
-            <StatCard title="Bookings" value="48" icon="calendar-o" />
+            <StatCard title="This Month" value={isNewUser ? "₹0" : "₹3,240"} icon="rupee" />
+            <StatCard title="Rating" value={isNewUser ? "0" : "4.9"} icon="star-o" />
+            <StatCard title="Bookings" value={isNewUser ? "0" : "48"} icon="calendar-o" />
           </View>
 
-          {/* Quick Cards */}
-          <View style={styles.quickRow}>
-            <LinearGradient
-              colors={['#7C3AED', '#8B5CF6']}
-              style={styles.quickCard}
+          {isNewUser ? (
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate('profile')}
             >
-              <FontAwesome name="book" size={30} color="#fff" />
-              <Text style={styles.quickTitle}>Courses</Text>
-              <Text style={styles.quickSub}>1 completed</Text>
-            </LinearGradient>
+              <LinearGradient
+                colors={['#FFEDD5', '#FED7AA']} // Light peach/orange gradient
+                style={styles.createPortfolioCard}
+              >
+                <View style={styles.iconContainer}>
+                  <FontAwesome name="magic" size={24} color="#7C3AED" />
+                </View>
+                <Text style={styles.createPortfolioTitle}>Create your portfolio now</Text>
+                <Text style={styles.createPortfolioSub}>become the part of MakeUpSeven</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          ) : (
+            <>
+              {/* Quick Cards */}
+              <View style={styles.quickRow}>
+                <LinearGradient
+                  colors={['#7C3AED', '#8B5CF6']}
+                  style={styles.quickCard}
+                >
+                  <FontAwesome name="book" size={30} color="#fff" />
+                  <Text style={styles.quickTitle}>Courses</Text>
+                  <Text style={styles.quickSub}>1 completed</Text>
+                </LinearGradient>
 
-            <LinearGradient
-              colors={['#FFE9D9', '#FFD9C6']}
-              style={styles.quickCard}
-            >
-              <FontAwesome name="magic" size={30} color="#7C3AED" />
-              <Text style={styles.quickTitleDark}>Portfolio</Text>
-              <Text style={styles.quickSubDark}>Manage profile</Text>
-            </LinearGradient>
-          </View>
+                <TouchableOpacity
+                  style={{ width: '48%' }}
+                  activeOpacity={0.9}
+                  onPress={() => navigation.navigate('profile')}
+                >
+                  <LinearGradient
+                    colors={['#FFE9D9', '#FFD9C6']}
+                    style={[styles.quickCard, { width: '100%' }]}
+                  >
+                    <FontAwesome name="magic" size={30} color="#7C3AED" />
+                    <Text style={styles.quickTitleDark}>Portfolio</Text>
+                    <Text style={styles.quickSubDark}>Manage profile</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
 
-          {/* Upcoming Bookings */}
-          <SectionHeader title="Upcoming Bookings" action="See All" />
+              {/* Upcoming Bookings */}
+              <SectionHeader title="Upcoming Bookings" action="See All" />
 
-          <BookingCard
-            name="Emily Davis"
-            service="Bridal Hair Styling"
-            time="Tomorrow · 2:00 PM"
-            price="₹280"
-          />
+              <BookingCard
+                name="Emily Davis"
+                service="Bridal Hair Styling"
+                time="Tomorrow · 2:00 PM"
+                price="₹280"
+              />
 
-          <BookingCard
-            name="Sarah Johnson"
-            service="Evening Makeup"
-            time="Dec 18 · 10:00 AM"
-            price="₹280"
-          />
+              <BookingCard
+                name="Sarah Johnson"
+                service="Evening Makeup"
+                time="Dec 18 · 10:00 AM"
+                price="₹280"
+              />
 
-          {/* Earnings */}
-          <SectionHeader title="Earnings Overview" />
+              {/* Earnings */}
+              <SectionHeader title="Earnings Overview" />
 
-          <LinearGradient
-            colors={['#7C3AED', '#8B5CF6']}
-            style={styles.earnings}
-          >
-            <Text style={styles.earningsLabel}>Total Earnings</Text>
-            <Text style={styles.earningsValue}>₹8,430</Text>
-            <Text style={styles.earningsSub}>+12.5% from last month</Text>
-          </LinearGradient>
+              <LinearGradient
+                colors={['#7C3AED', '#8B5CF6']}
+                style={styles.earnings}
+              >
+                <Text style={styles.earningsLabel}>Total Earnings</Text>
+                <Text style={styles.earningsValue}>₹8,430</Text>
+                <Text style={styles.earningsSub}>+12.5% from last month</Text>
+              </LinearGradient>
 
-          {/* Activity */}
-          <SectionHeader title="Recent Activity" />
+              {/* Activity */}
+              <SectionHeader title="Recent Activity" />
 
-          <ActivityCard
-            icon="money"
-            title="Payment Received"
-            sub="Photoshoot Makeup service"
-            amount="+₹200"
-            timeAgo="2 hours ago"
-          />
+              <ActivityCard
+                icon="money"
+                title="Payment Received"
+                sub="Photoshoot Makeup service"
+                amount="+₹200"
+                timeAgo="2 hours ago"
+              />
 
-          <ActivityCard
-            icon="star"
-            title="New 5-Star Review"
-            sub="Jessica Miller left a review"
-            timeAgo="2 hours ago"
-          />
+              <ActivityCard
+                icon="star"
+                title="New 5-Star Review"
+                sub="Jessica Miller left a review"
+                timeAgo="2 hours ago"
+              />
+            </>
+          )}
 
         </View>
       </ScrollView>
@@ -348,6 +377,39 @@ const styles = StyleSheet.create({
     marginLeft: 45,
     marginBottom: 9,
     color: '#9CA3AF',
+  },
+
+  createPortfolioCard: {
+    marginTop: 35,
+    borderRadius: 20,
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  iconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+
+  createPortfolioTitle: {
+    fontSize: 22,
+    fontWeight: '500',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+
+  createPortfolioSub: {
+    fontSize: 14,
+    color: '#4B5563',
+    textAlign: 'center',
   },
 
 });

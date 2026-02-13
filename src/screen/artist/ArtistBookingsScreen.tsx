@@ -1,21 +1,98 @@
+import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
+  ActivityIndicator,
   Image,
   ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import ScreenView from '../../utils/ScreenView';
-import { useNavigation } from '@react-navigation/native';
 
-
+// Dummy Data
+const DUMMY_BOOKINGS = [
+  {
+    id: '1',
+    user: {
+      name: 'Sarah Jones',
+      profileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
+    },
+    service: {
+      name: 'Bridal Makeup',
+    },
+    date: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
+    address: '123 Main St, New York, NY',
+    price: 15000,
+    status: 'Confirmed',
+  },
+  {
+    id: '2',
+    user: {
+      name: 'Emily Davis',
+      profileImage: 'https://randomuser.me/api/portraits/women/68.jpg',
+    },
+    service: {
+      name: 'Party Makeup',
+    },
+    date: new Date(Date.now() + 172800000).toISOString(), // Day after tomorrow
+    address: '456 Elm St, Brooklyn, NY',
+    price: 8000,
+    status: 'Pending',
+  },
+  {
+    id: '3',
+    user: {
+      name: 'Jessica Wilson',
+      profileImage: 'https://randomuser.me/api/portraits/women/12.jpg',
+    },
+    service: {
+      name: 'Hairstyling',
+    },
+    date: new Date(Date.now() - 86400000).toISOString(), // Yesterday
+    address: '789 Oak St, Queens, NY',
+    price: 5000,
+    status: 'Completed',
+  },
+  {
+    id: '4',
+    user: {
+      name: 'Amanda Brown',
+      profileImage: 'https://randomuser.me/api/portraits/women/33.jpg',
+    },
+    service: {
+      name: 'Event Makeup',
+    },
+    date: new Date(Date.now() - 172800000).toISOString(), // Day before yesterday
+    address: '321 Pine St, Bronx, NY',
+    price: 7000,
+    status: 'Cancelled',
+  },
+];
 
 const ArtistBookingsScreen = () => {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
-  const navigation = useNavigation<any>();  
+  const [bookings, setBookings] = useState<any[]>(DUMMY_BOOKINGS);
+  const [loading, setLoading] = useState(false);
+  const navigation = useNavigation<any>();
+
+  // Removed fetchBookings and useFocusEffect since we are using dummy data
+
+  const getFilteredBookings = () => {
+    const now = new Date();
+    return bookings.filter((booking: any) => {
+      const bookingDate = new Date(booking.date); // Ensure your API returns a valid date string
+      if (activeTab === 'upcoming') {
+        return bookingDate >= now || booking.status === 'Pending' || booking.status === 'Confirmed'; // Adjust logic as needed
+      } else {
+        return bookingDate < now || booking.status === 'Completed' || booking.status === 'Cancelled';
+      }
+    });
+  };
+
+  const filteredBookings = getFilteredBookings();
 
   return (
     <ScreenView>
@@ -41,7 +118,10 @@ const ArtistBookingsScreen = () => {
                   activeTab === 'upcoming' && styles.activeTabText,
                 ]}
               >
-                Upcoming (2)
+                Upcoming ({bookings.filter(b => {
+                  const d = new Date(b.date);
+                  return d >= new Date() || b.status === 'Pending' || b.status === 'Confirmed';
+                }).length})
               </Text>
             </TouchableOpacity>
 
@@ -58,59 +138,51 @@ const ArtistBookingsScreen = () => {
                   activeTab === 'past' && styles.activeTabText,
                 ]}
               >
-                Past (1)
+                Past ({bookings.filter(b => {
+                  const d = new Date(b.date);
+                  return d < new Date() || b.status === 'Completed' || b.status === 'Cancelled';
+                }).length})
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Booking Cards */}
-          {activeTab === 'upcoming' && (
+          {/* Content */}
+          {loading ? (
+            <View style={{ marginTop: 50 }}>
+              <ActivityIndicator size="large" color="#7C3AED" />
+            </View>
+          ) : (
             <>
-<BookingCard
-  image={require('../../asset/images/artists1.png')}
-  name="Sarah Johnson"
-  service="Wedding Makeup"
-  date="2024-12-15"
-  time="10:00 AM"
-  address="123 Main St, New York"
-  price="₹1299"
-  status="Pending"
-    onPressCard={() =>
-    navigation.navigate('BookingDetails', {
-      name: 'Sarah Johnson',
-      service: 'Wedding Makeup',
-      date: '2024-12-15',
-      time: '10:00 AM',
-      address: '123 Main St, New York',
-      price: '₹1299',
-      status: 'Pending',
-    })
-  }
-/>
-
-
-<BookingCard
-  image={require('../../asset/images/artists1.png')}
-  name="Emily Davis"
-  service="Bridal Hair Styling"
-  date="2024-12-16"
-  time="2:00 PM"
-  address="456 Park Ave, Brooklyn"
-  price="₹799"
-  status="Confirmed"
-    onPressCard={() =>
-    navigation.navigate('BookingDetails', {
-      name: 'Emily Davis',
-      service: 'Bridal Hair Styling',
-      date: '2024-12-16',
-      time: '2:00 PM',
-      address: '456 Park Ave, Brooklyn',
-      price: '₹799',
-      status: 'Confirmed',
-    })
-  }
-/>
-
+              {filteredBookings.length === 0 ? (
+                <View style={{ marginTop: 50, alignItems: 'center' }}>
+                  <Text style={{ color: '#6B7280', fontSize: 16 }}>No {activeTab} bookings found.</Text>
+                </View>
+              ) : (
+                filteredBookings.map((booking: any, index: number) => (
+                  <BookingCard
+                    key={index}
+                    image={booking.user?.profileImage ? { uri: booking.user.profileImage } : require('../../asset/images/artists1.png')}
+                    name={booking.user?.name || booking.userName || 'Unknown User'}
+                    service={booking.service?.name || booking.serviceName || 'Service'}
+                    date={new Date(booking.date).toLocaleDateString()}
+                    time={new Date(booking.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    address={booking.address || 'No address provided'}
+                    price={`₹${booking.price || booking.totalAmount || 0}`}
+                    status={booking.status || 'Pending'}
+                    onPressCard={() =>
+                      navigation.navigate('BookingDetails', {
+                        ...booking, // Pass the whole object
+                        name: booking.user?.name || booking.userName || 'Unknown User',
+                        service: booking.service?.name || booking.serviceName || 'Service',
+                        date: new Date(booking.date).toLocaleDateString(),
+                        time: new Date(booking.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        price: `₹${booking.price || booking.totalAmount || 0}`,
+                        status: booking.status || 'Pending',
+                      })
+                    }
+                  />
+                ))
+              )}
             </>
           )}
         </View>
@@ -136,10 +208,10 @@ const BookingCard = ({
 }: any) => (
 
   <TouchableOpacity
-  activeOpacity={0.9}
-  style={styles.card}
-  onPress={onPressCard}
->
+    activeOpacity={0.9}
+    style={styles.card}
+    onPress={onPressCard}
+  >
 
     <Image source={image} style={styles.cardImage} />
 
@@ -189,15 +261,15 @@ const BookingCard = ({
       <View style={styles.footerRow}>
         <Text style={styles.price}>{price}</Text>
 
-<TouchableOpacity style={styles.callBtn} activeOpacity={0.8}>
-  <FontAwesome name="phone" size={16} color="#000" />
-</TouchableOpacity>
+        <TouchableOpacity style={styles.callBtn} activeOpacity={0.8}>
+          <FontAwesome name="phone" size={16} color="#000" />
+        </TouchableOpacity>
 
 
 
       </View>
     </View>
- </TouchableOpacity>
+  </TouchableOpacity>
 );
 
 /* ---------------- STYLES ---------------- */

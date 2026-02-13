@@ -8,6 +8,7 @@ import CourseCheckoutScreen from '../screen/CourseCheckoutScreen';
 import PaymentSuccessScreen from '../screen/PaymentSuccessScreen';
 import CourseDetailsScreen from '../screen/CourseDetailsScreen';
 import CoursePlayerScreen from '../screen/CoursePlayerScreen';
+import CreateArtistProfileScreen from '../screen/artist/CreateArtistProfileScreen';
 
 
 const RootStack = createNativeStackNavigator();
@@ -18,6 +19,7 @@ const AppNavigator = () => {
             <RootStack.Navigator screenOptions={{ headerShown: false }}>
                 <RootStack.Screen name="Artist" component={ArtistStackNavigator} />
                 <RootStack.Screen name="Auth" component={AuthStack} />
+                <RootStack.Screen name="profile" component={CreateArtistProfileScreen} />
                 <RootStack.Screen name="CourseCheckout" component={CourseCheckoutScreen} />
                 <RootStack.Screen name="CourseDetails" component={CourseDetailsScreen} />
                 <RootStack.Screen name="CoursePlayer" component={CoursePlayerScreen} />

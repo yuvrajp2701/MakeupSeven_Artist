@@ -10,43 +10,70 @@ import {
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import ScreenView from '../../utils/ScreenView';
 
-const reviews = [
-  {
-    id: 1,
-    name: 'Ravi',
-    rating: 4,
-    date: 'August 13, 2024',
-    text:
-      'I loved this dress so much as soon as I tried it on I knew I had to buy it in another color. I am 5\'3 about 155lbs and I carry all my weight in my upper body. When I put it on I felt like it thinned me out and I got so many compliments.',
-    images: [
-      require('../../asset/images/artists1.png'),
-      require('../../asset/images/artists2.png'),
-      require('../../asset/images/mask.png'),
-    ],
-  },
-  {
-    id: 2,
-    name: 'Priya Kumar',
-    rating: 5,
-    date: 'August 10, 2024',
-    text:
-      'Amazing makeup skills! Made me look absolutely stunning for my wedding. The makeup lasted all day and night. Highly recommended!',
-    images: [],
-  },
-  {
-    id: 3,
-    name: 'Ananya Singh',
-    rating: 5,
-    date: 'August 5, 2024',
-    text:
-      'Very professional and talented artist. Understood exactly what I wanted and delivered perfectly. Will definitely book again!',
-    images: [
-      require('../../asset/images/hero-face.png'),
-    ],
-  },
-];
+import { apiCall } from '../../services/api';
+import { getToken } from '../../services/auth';
+import { useAuth } from '../../context/AuthContext';
 
-const ArtistAllReviewsScreen = ({ navigation }: any) => {
+const ArtistAllReviewsScreen = ({ navigation, route }: any) => {
+  const { userToken } = useAuth();
+  const [loading, setLoading] = React.useState(true);
+  const [reviews, setReviews] = React.useState<any[]>([]);
+  const [userInfo, setUserInfo] = React.useState({
+    name: 'Artist',
+    totalReviews: 0,
+    averageRating: 0
+  });
+
+  const fetchReviews = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const token = userToken || await getToken();
+      if (!token) return;
+
+      // 1. Get user info for header
+      const userRes = await apiCall('/auth/me', { method: 'GET', token });
+      const user = userRes?.user || userRes;
+
+      let rList: any[] = [];
+      const spId = user.serviceProvider?.id || user.serviceProviderId;
+
+      // 2. Try fetching reviews, handle 404/API missing gracefully
+      try {
+        let reviewsData;
+        if (spId) {
+          console.log(`[AllReviews] Fetching for Provider ID: ${spId}`);
+          reviewsData = await apiCall(`/reviews/provider/${spId}`, { method: 'GET', token });
+        } else {
+          reviewsData = await apiCall('/reviews/my', { method: 'GET', token });
+        }
+        rList = Array.isArray(reviewsData) ? reviewsData : (reviewsData?.reviews || reviewsData?.data || []);
+      } catch (err) {
+        console.warn('[AllReviews] Fetch failed:', err);
+        // endpoint might not exist
+      }
+
+      setReviews(rList);
+
+      if (user) {
+        setUserInfo({
+          name: user.name || 'Artist',
+          // Prefer api count, fallback to review list length
+          totalReviews: user.serviceProvider?.reviewCount || rList.length,
+          averageRating: user.serviceProvider?.averageRating || 0
+        });
+      }
+
+    } catch (e) {
+      console.warn('Review screen error:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [userToken]);
+
+  React.useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
+
   return (
     <ScreenView>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -62,26 +89,26 @@ const ArtistAllReviewsScreen = ({ navigation }: any) => {
             </TouchableOpacity>
 
             <View>
-              <Text style={styles.headerTitle}>Priya Sharma</Text>
-              <Text style={styles.headerSub}>243 total reviews</Text>
+              <Text style={styles.headerTitle}>{userInfo.name}</Text>
+              <Text style={styles.headerSub}>{userInfo.totalReviews} total reviews</Text>
             </View>
           </View>
 
           {/* SUMMARY */}
           <View style={styles.summaryCard}>
             <View style={styles.ratingLeft}>
-              <Text style={styles.bigRating}>4.8</Text>
+              <Text style={styles.bigRating}>{userInfo.averageRating.toFixed(1)}</Text>
               <View style={styles.starRow}>
                 {[...Array(5)].map((_, i) => (
                   <FontAwesome
                     key={i}
                     name="star"
                     size={18}
-                    color={i < 4 ? '#FBBF24' : '#E5E7EB'}
+                    color={i < Math.round(userInfo.averageRating) ? '#FBBF24' : '#E5E7EB'}
                   />
                 ))}
               </View>
-              <Text style={styles.basedOn}>Based on 243 reviews</Text>
+              <Text style={styles.basedOn}>Based on {userInfo.totalReviews} reviews</Text>
             </View>
 
             <View style={styles.ratingBars}>
@@ -105,47 +132,56 @@ const ArtistAllReviewsScreen = ({ navigation }: any) => {
           </View>
 
           {/* REVIEWS LIST */}
-          {reviews.map(item => (
-            <View key={item.id} style={styles.reviewCard}>
-              <View style={styles.reviewHeader}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>
-                    {item.name.charAt(0)}
+          {/* REVIEWS LIST */}
+          {reviews.length > 0 ? (
+            reviews.map((item, index) => (
+              <View key={item.id || index} style={styles.reviewCard}>
+                <View style={styles.reviewHeader}>
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>
+                      {(item.userName || item.name || '?').charAt(0)}
+                    </Text>
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.reviewName}>{item.userName || item.name || 'Anonymous'}</Text>
+                    <View style={styles.starRowSmall}>
+                      {[...Array(5)].map((_, i) => (
+                        <FontAwesome
+                          key={i}
+                          name="star"
+                          size={14}
+                          color={i < (item.rating || 0) ? '#FBBF24' : '#E5E7EB'}
+                        />
+                      ))}
+                    </View>
+                  </View>
+
+                  <Text style={styles.reviewDate}>
+                    {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : (item.date || '')}
                   </Text>
                 </View>
 
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.reviewName}>{item.name}</Text>
-                  <View style={styles.starRowSmall}>
-                    {[...Array(5)].map((_, i) => (
-                      <FontAwesome
-                        key={i}
-                        name="star"
-                        size={14}
-                        color={i < item.rating ? '#FBBF24' : '#E5E7EB'}
+                <Text style={styles.reviewText}>{item.comment || item.text || ''}</Text>
+
+                {item.images && item.images.length > 0 && (
+                  <View style={styles.reviewImagesRow}>
+                    {item.images.map((img: any, idx: number) => (
+                      <Image
+                        key={idx}
+                        source={typeof img === 'string' ? { uri: img } : img}
+                        style={styles.reviewImage}
                       />
                     ))}
                   </View>
-                </View>
-
-                <Text style={styles.reviewDate}>{item.date}</Text>
+                )}
               </View>
-
-              <Text style={styles.reviewText}>{item.text}</Text>
-
-              {item.images.length > 0 && (
-                <View style={styles.reviewImagesRow}>
-                  {item.images.map((img, idx) => (
-                    <Image
-                      key={idx}
-                      source={img}
-                      style={styles.reviewImage}
-                    />
-                  ))}
-                </View>
-              )}
+            ))
+          ) : (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <Text style={{ color: '#666' }}>No reviews yet.</Text>
             </View>
-          ))}
+          )}
 
         </View>
       </ScrollView>

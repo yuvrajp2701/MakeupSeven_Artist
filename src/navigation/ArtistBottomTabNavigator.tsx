@@ -9,7 +9,6 @@ import ArtistHomeScreen from '../screen/artist/ArtistHomeScreen';
 import ArtistBookingsScreen from '../screen/artist/ArtistBookingsScreen';
 import ArtistPortfolioScreen from '../screen/artist/ArtistPortfolioScreen';
 import ArtistWalletScreen from '../screen/artist/ArtistWalletScreen';
-import ArtistCoursesScreen from '../screen/artist/ArtistCoursesScreen';
 import ArtistBookingsStackNavigator from './ArtistBookingsStackNavigator';
 import CoursesScreen from '../screen/CoursesScreen';
 

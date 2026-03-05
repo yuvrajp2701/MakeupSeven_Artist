@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,59 +8,106 @@ import {
     TouchableOpacity,
     Dimensions,
     FlatList,
+    ActivityIndicator,
+    RefreshControl,
 } from 'react-native';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import { useNavigation } from '@react-navigation/native';
 import Colors from '../utils/Colors'; // Assuming Colors exists, otherwise will duplicate or use hex
 import LinearGradient from 'react-native-linear-gradient';
+import { apiCall } from '../services/api';
+import { getToken } from '../services/auth';
+import { useAuth } from '../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
+const MOCK_COURSES = [
+    {
+        id: '1',
+        title: 'Advanced Bridal Makeup Techniques',
+        description: 'Master the art of bridal makeup with advanced techniques, color theory, and long-lasting',
+        duration: '4.5 hours',
+        lessons: '12 lessons',
+        rating: 4.9,
+        price: '₹1499',
+        image: require('../asset/images/artists1.png'), // Placeholder
+        badge: 'Advanced',
+        status: 'Completed',
+    },
+    {
+        id: '2',
+        title: 'Editorial & Fashion Makeup',
+        description: 'Learn creative and avant-garde makeup techniques for editorial shoots and fashion',
+        duration: '3.5 hours',
+        lessons: '10 lessons',
+        rating: 4.8,
+        price: '₹1299',
+        image: require('../asset/images/artists2.png'), // Placeholder
+        badge: 'Intermediate',
+        status: 'Enroll',
+    },
+    {
+        id: '3',
+        title: 'Airbrush Makeup Fundamentals',
+        description: 'Complete guide to airbrush makeup including equipment setup and professional techniques.',
+        duration: '2.5 hours',
+        lessons: '8 lessons',
+        rating: 4.9,
+        price: '₹999',
+        image: require('../asset/images/bestartists1.png'), // Placeholder
+        badge: 'Beginner',
+        status: 'Enroll',
+    },
+];
+
 const CoursesScreen = () => {
     const navigation = useNavigation<any>();
-    const courses = [
-        {
-            id: '1',
-            title: 'Advanced Bridal Makeup Techniques',
-            description: 'Master the art of bridal makeup with advanced techniques, color theory, and long-lasting',
-            duration: '4.5 hours',
-            lessons: '12 lessons',
-            rating: 4.9,
-            price: '₹1499',
-            image: require('../asset/images/artists1.png'), // Placeholder
-            badge: 'Advanced',
-            status: 'Completed',
-        },
-        {
-            id: '2',
-            title: 'Editorial & Fashion Makeup',
-            description: 'Learn creative and avant-garde makeup techniques for editorial shoots and fashion',
-            duration: '3.5 hours',
-            lessons: '10 lessons',
-            rating: 4.8,
-            price: '₹1299',
-            image: require('../asset/images/artists2.png'), // Placeholder
-            badge: 'Intermediate',
-            status: 'Enroll',
-        },
-        {
-            id: '3',
-            title: 'Airbrush Makeup Fundamentals',
-            description: 'Complete guide to airbrush makeup including equipment setup and professional techniques.',
-            duration: '2.5 hours',
-            lessons: '8 lessons',
-            rating: 4.9,
-            price: '₹999',
-            image: require('../asset/images/bestartists1.png'), // Placeholder
-            badge: 'Beginner',
-            status: 'Enroll',
-        },
-    ];
+    const { userToken } = useAuth();
+    const [courses, setCourses] = useState<any[]>(MOCK_COURSES);
+    const [loading, setLoading] = useState(false);
+    const [stats, setStats] = useState({ done: 1, certified: 1, total: 4 });
+
+    useEffect(() => {
+        fetchCourses();
+    }, []);
+
+    const fetchCourses = async () => {
+        try {
+            setLoading(true);
+            const token = userToken || (await getToken()) || undefined;
+
+            // Note: Placeholder endpoint for now
+            const response = await apiCall('/academy/courses', { method: 'GET', token });
+
+            if (response && (Array.isArray(response) || response.data || response.courses)) {
+                const fetchedList = Array.isArray(response) ? response : (response.courses || response.data || []);
+                if (fetchedList.length > 0) {
+                    setCourses(fetchedList);
+
+                    // Update stats based on fetched data if available
+                    setStats({
+                        done: fetchedList.filter((c: any) => c.status === 'Completed').length,
+                        certified: fetchedList.filter((c: any) => c.isCertified).length,
+                        total: fetchedList.length
+                    });
+                }
+            }
+        } catch (error) {
+            console.log('[Courses] Fetch failed, using mock data:', error);
+            // Stay with mock data
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const renderCourseItem = ({ item }: { item: any }) => (
         <View style={styles.courseCard}>
             <View style={styles.imageContainer}>
-                <Image source={item.image} style={styles.courseImage} resizeMode="cover" />
+                <Image
+                    source={typeof item.image === 'string' ? { uri: item.image } : item.image}
+                    style={styles.courseImage}
+                    resizeMode="cover"
+                />
                 <View style={styles.badgeContainer}>
                     <Text style={styles.badgeText}>{item.badge}</Text>
                 </View>
@@ -121,7 +168,13 @@ const CoursesScreen = () => {
                 <Text style={styles.headerSubtitle}>Learn from industry experts</Text>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={loading} onRefresh={fetchCourses} />
+                }
+            >
 
                 {/* Progress Card */}
                 <LinearGradient
@@ -134,8 +187,8 @@ const CoursesScreen = () => {
                         <View>
                             <Text style={styles.progressLabel}>Your Progress</Text>
                             <View style={styles.ratioRow}>
-                                <Text style={styles.ratioMain}>1/</Text>
-                                <Text style={styles.ratioTotal}>4</Text>
+                                <Text style={styles.ratioMain}>{stats.done}/</Text>
+                                <Text style={styles.ratioTotal}>{stats.total}</Text>
                             </View>
                             <Text style={styles.ratioLabel}>Total</Text>
                         </View>
@@ -150,11 +203,11 @@ const CoursesScreen = () => {
 
                     <View style={styles.statsRow}>
                         <View style={styles.statItem}>
-                            <Text style={styles.statValue}>1</Text>
+                            <Text style={styles.statValue}>{stats.done}</Text>
                             <Text style={styles.statLabel}>Done</Text>
                         </View>
                         <View style={[styles.statItem, { borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.2)', paddingLeft: 20 }]}>
-                            <Text style={styles.statValue}>1</Text>
+                            <Text style={styles.statValue}>{stats.certified}</Text>
                             <Text style={styles.statLabel}>Certified</Text>
                         </View>
                     </View>

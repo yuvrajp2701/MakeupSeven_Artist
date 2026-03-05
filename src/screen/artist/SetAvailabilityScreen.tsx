@@ -5,33 +5,90 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import ScreenView from '../../utils/ScreenView';
+import { apiCall } from '../../services/api';
+import { getToken } from '../../services/auth';
+import { useAuth } from '../../context/AuthContext';
 
 const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-// November 2024 (static for now – can be dynamic later)
-const DATES = [
-  null, null, null, null, 1, 2, 3,
-  4, 5, 6, 7, 8, 9, 10,
-  11, 12, 13, 14, 15, 16, 17,
-  18, 19, 20, 21, 22, 23, 24,
-  25, 26, 27, 28, 29, 30,
-];
-
 const SetAvailabilityScreen = ({ navigation }: any) => {
-  const [availableDates, setAvailableDates] = useState<number[]>([
-    4, 7, 12, 13, 16, 17, 18, 19, 20, 22, 23, 26, 28,
-  ]);
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const { userToken } = useAuth();
 
-  const toggleDate = (date: number) => {
+  // Helper to get dates for current selected month
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const dates: (number | null)[] = [];
+    for (let i = 0; i < firstDay; i++) dates.push(null);
+    for (let i = 1; i <= daysInMonth; i++) dates.push(i);
+    return dates;
+  };
+
+  const toggleDate = (day: number) => {
+    const dateKey = `${selectedMonth.getFullYear()}-${(selectedMonth.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
     setAvailableDates(prev =>
-      prev.includes(date)
-        ? prev.filter(d => d !== date)
-        : [...prev, date]
+      prev.includes(dateKey)
+        ? prev.filter(d => d !== dateKey)
+        : [...prev, dateKey]
     );
   };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const token = userToken || await getToken();
+      if (!token) {
+        Alert.alert("Auth Error", "Please login again.");
+        return;
+      }
+
+      if (availableDates.length === 0) {
+        Alert.alert("Validation", "Please select at least one date.");
+        return;
+      }
+
+      const availabilityData = availableDates.map(date => ({
+        date,
+        startTime: "09:00",
+        endTime: "21:00"
+      }));
+
+      await apiCall('/artist-availability/artist', {
+        method: 'POST',
+        token,
+        body: { availability: availabilityData }
+      });
+
+      Alert.alert("Success", "Availability updated successfully!");
+      navigation.goBack();
+    } catch (e: any) {
+      console.error('Save availability failed:', e);
+      Alert.alert("Error", e.message || "Failed to update availability");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const changeMonth = (offset: number) => {
+    const next = new Date(selectedMonth);
+    next.setMonth(next.getMonth() + offset);
+    setSelectedMonth(next);
+  };
+
+  const monthName = selectedMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const DATES = getDaysInMonth(selectedMonth);
 
   return (
     <ScreenView>
@@ -46,26 +103,26 @@ const SetAvailabilityScreen = ({ navigation }: any) => {
 
             <Text style={styles.headerTitle}>Set Availability</Text>
 
-            <TouchableOpacity style={styles.iconBtn}>
-              <FontAwesome name="save" size={18} color="#7B4DFF" />
+            <TouchableOpacity style={styles.iconBtn} onPress={handleSave} disabled={saving}>
+              {saving ? <ActivityIndicator size="small" color="#7B4DFF" /> : <FontAwesome name="save" size={18} color="#7B4DFF" />}
             </TouchableOpacity>
           </View>
 
           {/* INSTRUCTION */}
           <Text style={styles.helperText}>
-            Click on date to set that date as available
+            Click on date to set that date as available for bookings.
           </Text>
 
           {/* CALENDAR */}
           <View style={styles.calendarCard}>
             <View style={styles.monthRow}>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => changeMonth(-1)}>
                 <FontAwesome name="angle-left" size={18} />
               </TouchableOpacity>
 
-              <Text style={styles.monthText}>November 2024</Text>
+              <Text style={styles.monthText}>{monthName}</Text>
 
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => changeMonth(1)}>
                 <FontAwesome name="angle-right" size={18} />
               </TouchableOpacity>
             </View>
@@ -79,20 +136,23 @@ const SetAvailabilityScreen = ({ navigation }: any) => {
 
             {/* DATES */}
             <View style={styles.datesGrid}>
-              {DATES.map((date, index) =>
-                date ? (
+              {DATES.map((date, index) => {
+                const dateKey = date ? `${selectedMonth.getFullYear()}-${(selectedMonth.getMonth() + 1).toString().padStart(2, '0')}-${date.toString().padStart(2, '0')}` : '';
+                const isSelected = availableDates.includes(dateKey);
+
+                return date ? (
                   <TouchableOpacity
                     key={index}
                     style={[
                       styles.dateCell,
-                      availableDates.includes(date) && styles.activeDate,
+                      isSelected && styles.activeDate,
                     ]}
                     onPress={() => toggleDate(date)}
                   >
                     <Text
                       style={[
                         styles.dateText,
-                        availableDates.includes(date) && styles.activeDateText,
+                        isSelected && styles.activeDateText,
                       ]}
                     >
                       {date}
@@ -100,8 +160,8 @@ const SetAvailabilityScreen = ({ navigation }: any) => {
                   </TouchableOpacity>
                 ) : (
                   <View key={index} style={styles.dateCell} />
-                )
-              )}
+                );
+              })}
             </View>
 
             {/* LEGEND */}
@@ -119,12 +179,12 @@ const SetAvailabilityScreen = ({ navigation }: any) => {
 
             <View style={styles.legendLine}>
               <View style={styles.legendDot} />
-              <Text style={styles.legendText}>Available</Text>
+              <Text style={styles.legendText}>Available (Client can book you)</Text>
             </View>
 
             <View style={styles.legendLine}>
               <View style={styles.legendOutline} />
-              <Text style={styles.legendText}>Unavailable</Text>
+              <Text style={styles.legendText}>Unavailable (Offline)</Text>
             </View>
           </View>
 
@@ -132,13 +192,17 @@ const SetAvailabilityScreen = ({ navigation }: any) => {
           <View style={styles.infoCard}>
             <Text style={styles.infoText}>
               Keep your calendar updated to get more bookings.
-              Customers can only book on dates marked as available.
+              Only dates marked in purple will be visible to customers for booking.
             </Text>
           </View>
 
           {/* SAVE BUTTON */}
-          <TouchableOpacity style={styles.saveBtn}>
-            <Text style={styles.saveBtnText}>Save Availability</Text>
+          <TouchableOpacity
+            style={[styles.saveBtn, saving && { opacity: 0.7 }]}
+            onPress={handleSave}
+            disabled={saving}
+          >
+            {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Availability</Text>}
           </TouchableOpacity>
 
         </View>
@@ -148,6 +212,7 @@ const SetAvailabilityScreen = ({ navigation }: any) => {
 };
 
 export default SetAvailabilityScreen;
+
 const styles = StyleSheet.create({
   container: { paddingBottom: 40 },
 
@@ -221,10 +286,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   activeDateText: { color: '#fff', fontWeight: '600' },
-legendItem: {
-  flexDirection: 'row',
-  alignItems: 'center',
-},
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   legendRow: {
     marginTop: 10,
     flexDirection: 'row',

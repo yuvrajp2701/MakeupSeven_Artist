@@ -6,11 +6,14 @@ import {
     StyleSheet,
     TouchableOpacity,
     FlatList,
-    Image
+    Image,
+    ActivityIndicator
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Colors from '../../utils/Colors';
 import { scale, verticalScale, moderateScale, hp } from '../../utils/Responsive';
+import { apiCall } from '../../services/api';
+import { getToken } from '../../services/auth';
 
 const LOCATIONS = [
     {
@@ -29,15 +32,47 @@ const LOCATIONS = [
 
 const LocationSearchScreen = ({ navigation }: any) => {
     const [search, setSearch] = useState('');
-    const [filtered, setFiltered] = useState(LOCATIONS);
+    const [locations, setLocations] = useState<any[]>([]);
+    const [filtered, setFiltered] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+
+    React.useEffect(() => {
+        fetchLocations();
+    }, []);
+
+    const fetchLocations = async () => {
+        try {
+            setLoading(true);
+            const token = await getToken();
+            const response = await apiCall('/service-zones/getServiceZones?type=POLYGON&ownerType=MASTER_CITY&isActive=true', {
+                method: 'GET',
+                token: token || undefined
+            });
+
+            const zones = Array.isArray(response) ? response : (response?.data || response?.zones || []);
+            const mapped = zones.map((z: any) => ({
+                id: z.id || z._id,
+                title: z.name || 'Unknown Zone',
+                subtitle: z.city || 'Available Service Area',
+                icon: require('../../asset/images/location.png'),
+            }));
+
+            setLocations(mapped);
+            setFiltered(mapped);
+        } catch (error) {
+            console.warn('Failed to fetch service zones:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSearch = (text: string) => {
         setSearch(text);
         if (!text) {
-            setFiltered(LOCATIONS);
+            setFiltered(locations);
         } else {
             setFiltered(
-                LOCATIONS.filter(item =>
+                locations.filter(item =>
                     item.title.toLowerCase().includes(text.toLowerCase())
                 )
             );
@@ -74,20 +109,24 @@ const LocationSearchScreen = ({ navigation }: any) => {
                     />
                     <Text style={styles.currentLocText}>Use your current location</Text>
                 </TouchableOpacity>
-                <FlatList
-                    data={filtered}
-                    keyExtractor={item => item.id}
-                    renderItem={({ item }) => (
-                        <TouchableOpacity onPress={() => navigation.navigate('ReferralCode')} style={styles.resultRow}>
-                            <Image source={item.icon} style={styles.locIcon} />
-                            <View>
-                                <Text style={styles.resultTitle}>{item.title}</Text>
-                                <Text style={styles.resultSubtitle}>{item.subtitle}</Text>
-                            </View>
-                        </TouchableOpacity>
-                    )}
-                    style={styles.resultList}
-                />
+                {loading ? (
+                    <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 20 }} />
+                ) : (
+                    <FlatList
+                        data={filtered}
+                        keyExtractor={item => item.id}
+                        renderItem={({ item }) => (
+                            <TouchableOpacity onPress={() => navigation.navigate('ReferralCode')} style={styles.resultRow}>
+                                <Image source={item.icon} style={styles.locIcon} />
+                                <View>
+                                    <Text style={styles.resultTitle}>{item.title}</Text>
+                                    <Text style={styles.resultSubtitle}>{item.subtitle}</Text>
+                                </View>
+                            </TouchableOpacity>
+                        )}
+                        style={styles.resultList}
+                    />
+                )}
             </View>
         </View>
     );

@@ -53,7 +53,10 @@ const CourseDetailsScreen = () => {
         <View style={styles.container}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
                 {/* Hero Header */}
-                <ImageBackground source={course.image} style={styles.heroImage}>
+                <ImageBackground
+                    source={typeof course.image === 'string' ? { uri: course.image } : course.image}
+                    style={styles.heroImage}
+                >
                     <LinearGradient
                         colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.8)']}
                         style={styles.heroGradient}

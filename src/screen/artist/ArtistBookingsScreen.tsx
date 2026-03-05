@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,83 +12,65 @@ import {
 } from 'react-native';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import ScreenView from '../../utils/ScreenView';
+import { apiCall } from '../../services/api';
+import { getToken } from '../../services/auth';
 
 // Dummy Data
-const DUMMY_BOOKINGS = [
-  {
-    id: '1',
-    user: {
-      name: 'Sarah Jones',
-      profileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
-    },
-    service: {
-      name: 'Bridal Makeup',
-    },
-    date: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-    address: '123 Main St, New York, NY',
-    price: 15000,
-    status: 'Confirmed',
-  },
-  {
-    id: '2',
-    user: {
-      name: 'Emily Davis',
-      profileImage: 'https://randomuser.me/api/portraits/women/68.jpg',
-    },
-    service: {
-      name: 'Party Makeup',
-    },
-    date: new Date(Date.now() + 172800000).toISOString(), // Day after tomorrow
-    address: '456 Elm St, Brooklyn, NY',
-    price: 8000,
-    status: 'Pending',
-  },
-  {
-    id: '3',
-    user: {
-      name: 'Jessica Wilson',
-      profileImage: 'https://randomuser.me/api/portraits/women/12.jpg',
-    },
-    service: {
-      name: 'Hairstyling',
-    },
-    date: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-    address: '789 Oak St, Queens, NY',
-    price: 5000,
-    status: 'Completed',
-  },
-  {
-    id: '4',
-    user: {
-      name: 'Amanda Brown',
-      profileImage: 'https://randomuser.me/api/portraits/women/33.jpg',
-    },
-    service: {
-      name: 'Event Makeup',
-    },
-    date: new Date(Date.now() - 172800000).toISOString(), // Day before yesterday
-    address: '321 Pine St, Bronx, NY',
-    price: 7000,
-    status: 'Cancelled',
-  },
-];
+
 
 const ArtistBookingsScreen = () => {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
-  const [bookings, setBookings] = useState<any[]>(DUMMY_BOOKINGS);
-  const [loading, setLoading] = useState(false);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigation = useNavigation<any>();
 
-  // Removed fetchBookings and useFocusEffect since we are using dummy data
+  const fetchBookings = async () => {
+    try {
+      setLoading(true);
+      const token = await getToken();
+
+      if (!token) {
+        console.log('No token available, skipping fetch');
+        setBookings([]);
+        return;
+      }
+
+      const response = await apiCall('/booking', { method: 'GET', token });
+      const data = Array.isArray(response) ? response : (response?.bookings || response?.data || []);
+
+      console.log('Fetched Bookings:', data.length);
+      setBookings(data);
+    } catch (error) {
+      console.warn('Failed to fetch bookings:', error);
+      setBookings([]); // Clear on error to avoid showing stale/dummy data
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchBookings();
+  }, []);
 
   const getFilteredBookings = () => {
     const now = new Date();
     return bookings.filter((booking: any) => {
-      const bookingDate = new Date(booking.date); // Ensure your API returns a valid date string
+      const bDate = booking.bookingDate || booking.date;
+      const bookingDate = new Date(bDate);
+      if (isNaN(bookingDate.getTime())) return false;
+
+      const status = (booking.status || '').toUpperCase();
+      const isActive = ['PENDING', 'CONFIRMED', 'APPROVED', 'STARTED'].includes(status);
+      const isCompleted = ['COMPLETED', 'CANCELLED', 'REJECTED', 'CANCELLED_BY_ARTIST'].includes(status);
+
       if (activeTab === 'upcoming') {
-        return bookingDate >= now || booking.status === 'Pending' || booking.status === 'Confirmed'; // Adjust logic as needed
+        // Show future bookings OR any booking that is still active (not completed/cancelled) regardless of date
+        const isFuture = bookingDate >= now;
+        return (isFuture && !isCompleted) || isActive;
       } else {
-        return bookingDate < now || booking.status === 'Completed' || booking.status === 'Cancelled';
+        // Show past bookings that are NOT active, OR any explicitly completed/cancelled booking
+        const isPast = bookingDate < now;
+        return (isPast && !isActive) || isCompleted;
       }
     });
   };
@@ -96,7 +79,12 @@ const ArtistBookingsScreen = () => {
 
   return (
     <ScreenView>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={fetchBookings} />
+        }
+      >
         <View style={styles.container}>
 
           {/* Header */}
@@ -119,8 +107,11 @@ const ArtistBookingsScreen = () => {
                 ]}
               >
                 Upcoming ({bookings.filter(b => {
-                  const d = new Date(b.date);
-                  return d >= new Date() || b.status === 'Pending' || b.status === 'Confirmed';
+                  const d = new Date(b.bookingDate || b.date);
+                  const status = (b.status || '').toUpperCase();
+                  const isActive = ['PENDING', 'CONFIRMED', 'APPROVED', 'STARTED'].includes(status);
+                  const isCompleted = ['COMPLETED', 'CANCELLED', 'REJECTED', 'CANCELLED_BY_ARTIST'].includes(status);
+                  return (d >= new Date() && !isCompleted) || isActive;
                 }).length})
               </Text>
             </TouchableOpacity>
@@ -139,8 +130,11 @@ const ArtistBookingsScreen = () => {
                 ]}
               >
                 Past ({bookings.filter(b => {
-                  const d = new Date(b.date);
-                  return d < new Date() || b.status === 'Completed' || b.status === 'Cancelled';
+                  const d = new Date(b.bookingDate || b.date);
+                  const status = (b.status || '').toUpperCase();
+                  const isActive = ['PENDING', 'CONFIRMED', 'APPROVED', 'STARTED'].includes(status);
+                  const isCompleted = ['COMPLETED', 'CANCELLED', 'REJECTED', 'CANCELLED_BY_ARTIST'].includes(status);
+                  return (d < new Date() && !isActive) || isCompleted;
                 }).length})
               </Text>
             </TouchableOpacity>
@@ -158,30 +152,36 @@ const ArtistBookingsScreen = () => {
                   <Text style={{ color: '#6B7280', fontSize: 16 }}>No {activeTab} bookings found.</Text>
                 </View>
               ) : (
-                filteredBookings.map((booking: any, index: number) => (
-                  <BookingCard
-                    key={index}
-                    image={booking.user?.profileImage ? { uri: booking.user.profileImage } : require('../../asset/images/artists1.png')}
-                    name={booking.user?.name || booking.userName || 'Unknown User'}
-                    service={booking.service?.name || booking.serviceName || 'Service'}
-                    date={new Date(booking.date).toLocaleDateString()}
-                    time={new Date(booking.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    address={booking.address || 'No address provided'}
-                    price={`₹${booking.price || booking.totalAmount || 0}`}
-                    status={booking.status || 'Pending'}
-                    onPressCard={() =>
-                      navigation.navigate('BookingDetails', {
-                        ...booking, // Pass the whole object
-                        name: booking.user?.name || booking.userName || 'Unknown User',
-                        service: booking.service?.name || booking.serviceName || 'Service',
-                        date: new Date(booking.date).toLocaleDateString(),
-                        time: new Date(booking.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                        price: `₹${booking.price || booking.totalAmount || 0}`,
-                        status: booking.status || 'Pending',
-                      })
-                    }
-                  />
-                ))
+                filteredBookings.map((booking: any, index: number) => {
+                  const bDateStr = booking.bookingDate || booking.date;
+                  const bDate = new Date(bDateStr);
+
+                  return (
+                    <BookingCard
+                      key={booking.id || index}
+                      image={booking.user?.profileImage ? { uri: booking.user.profileImage } : require('../../asset/images/facial.png')}
+                      name={booking.user?.name || booking.userName || 'Unknown User'}
+                      service={booking.service?.name || booking.serviceName || 'Makeup Service'}
+                      date={bDate.toLocaleDateString()}
+                      time={bDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      address={booking.address || 'Location not specified'}
+                      price={`₹${booking.totalPrice || booking.price || booking.totalAmount || 0}`}
+                      status={booking.status || 'Pending'}
+                      onPressCard={() =>
+                        navigation.navigate('BookingDetails', {
+                          ...booking,
+                          bookingId: booking._id || booking.id,
+                          name: booking.user?.name || booking.userName || 'Unknown User',
+                          service: booking.service?.name || booking.serviceName || 'Service',
+                          date: bDate.toLocaleDateString(),
+                          time: bDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                          price: `₹${booking.totalPrice || booking.price || booking.totalAmount || 0}`,
+                          status: booking.status || 'Pending',
+                        })
+                      }
+                    />
+                  );
+                })
               )}
             </>
           )}
@@ -195,6 +195,21 @@ export default ArtistBookingsScreen;
 
 /* ---------------- COMPONENT ---------------- */
 
+const getStatusColor = (status: string) => {
+  const s = (status || '').toUpperCase();
+  switch (s) {
+    case 'PENDING': return { bg: '#FEF3C7', text: '#D97706' }; // Yellow
+    case 'CONFIRMED':
+    case 'APPROVED': return { bg: '#DBEAFE', text: '#2563EB' }; // Blue
+    case 'STARTED': return { bg: '#E0E7FF', text: '#4F46E5' }; // Indigo
+    case 'COMPLETED': return { bg: '#D1FAE5', text: '#059669' }; // Green
+    case 'CANCELLED':
+    case 'CANCELLED_BY_ARTIST':
+    case 'REJECTED': return { bg: '#FEE2E2', text: '#DC2626' }; // Red
+    default: return { bg: '#F3F4F6', text: '#6B7280' }; // Gray
+  }
+};
+
 const BookingCard = ({
   image,
   name,
@@ -205,72 +220,59 @@ const BookingCard = ({
   price,
   status,
   onPressCard,
-}: any) => (
+}: any) => {
+  const { bg, text } = getStatusColor(status);
 
-  <TouchableOpacity
-    activeOpacity={0.9}
-    style={styles.card}
-    onPress={onPressCard}
-  >
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      style={styles.card}
+      onPress={onPressCard}
+    >
+      <Image source={image} style={styles.cardImage} />
 
-    <Image source={image} style={styles.cardImage} />
+      <View style={styles.cardContent}>
+        <View style={styles.rowBetween}>
+          <Text style={styles.name}>{name}</Text>
 
-    <View style={styles.cardContent}>
-      <View style={styles.rowBetween}>
-        <Text style={styles.name}>{name}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: bg }]}>
+            <Text style={[styles.statusText, { color: text }]}>
+              {status}
+            </Text>
+          </View>
+        </View>
 
-        <View
-          style={[
-            styles.statusBadge,
-            status === 'Pending' ? styles.pending : styles.confirmed,
-          ]}
-        >
-          <Text
-            style={[
-              styles.statusText,
-              status === 'Pending'
-                ? styles.pendingText
-                : styles.confirmedText,
-            ]}
-          >
-            {status}
-          </Text>
+        <Text style={styles.service}>{service}</Text>
+
+        <View style={styles.infoRow}>
+          <FontAwesome name="calendar" size={12} color="#9CA3AF" />
+          <Text style={styles.infoText}>{date}</Text>
+
+          <FontAwesome
+            name="clock-o"
+            size={12}
+            color="#9CA3AF"
+            style={{ marginLeft: 10 }}
+          />
+          <Text style={styles.infoText}>{time}</Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <FontAwesome name="map-marker" size={14} color="#9CA3AF" />
+          <Text style={styles.infoText}>{address}</Text>
+        </View>
+
+        <View style={styles.footerRow}>
+          <Text style={styles.price}>{price}</Text>
+
+          <TouchableOpacity style={styles.callBtn} activeOpacity={0.8}>
+            <FontAwesome name="phone" size={16} color="#000" />
+          </TouchableOpacity>
         </View>
       </View>
-
-      <Text style={styles.service}>{service}</Text>
-
-      <View style={styles.infoRow}>
-        <FontAwesome name="calendar" size={12} color="#9CA3AF" />
-        <Text style={styles.infoText}>{date}</Text>
-
-        <FontAwesome
-          name="clock-o"
-          size={12}
-          color="#9CA3AF"
-          style={{ marginLeft: 10 }}
-        />
-        <Text style={styles.infoText}>{time}</Text>
-      </View>
-
-      <View style={styles.infoRow}>
-        <FontAwesome name="map-marker" size={14} color="#9CA3AF" />
-        <Text style={styles.infoText}>{address}</Text>
-      </View>
-
-      <View style={styles.footerRow}>
-        <Text style={styles.price}>{price}</Text>
-
-        <TouchableOpacity style={styles.callBtn} activeOpacity={0.8}>
-          <FontAwesome name="phone" size={16} color="#000" />
-        </TouchableOpacity>
-
-
-
-      </View>
-    </View>
-  </TouchableOpacity>
-);
+    </TouchableOpacity>
+  );
+};
 
 /* ---------------- STYLES ---------------- */
 
@@ -398,24 +400,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
 
-  pending: {
-    backgroundColor: '#FEF3C7',
-  },
-
-  confirmed: {
-    backgroundColor: '#DBEAFE',
-  },
-
   statusText: {
     fontSize: 12,
     fontWeight: '500',
-  },
-
-  pendingText: {
-    color: '#F59E0B',
-  },
-
-  confirmedText: {
-    color: '#2563EB',
   },
 });

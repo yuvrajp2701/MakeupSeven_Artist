@@ -1,105 +1,72 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, SafeAreaView, StatusBar } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { apiCall } from '../../services/api';
+import { getToken } from '../../services/auth';
+import { useAuth } from '../../context/AuthContext';
 
 
-const NOTIFICATIONS = [
+const NOTIFICATIONS_DEFAULT = [
     {
         id: '1',
-        type: 'booking_req',
-        title: 'New Booking Request',
-        message: 'Sarah Johnson wants to book Wedding Makeup for Dec 15',
-        time: '2 min ago',
-        unread: true,
-        icon: 'event',
-        color: '#8855FF', // Purple
-        bgColor: '#F3EFFF',
-    },
-    {
-        id: '2',
-        type: 'booking_conf',
-        title: 'Booking Confirmed',
-        message: 'Emily Davis confirmed the booking for Bridal Hair Styling',
-        time: '1 hour ago',
-        unread: true,
-        icon: 'check-circle',
-        color: '#00C853', // Green
-        bgColor: '#E8F5E9',
-    },
-    {
-        id: '3',
-        type: 'payment',
-        title: 'Payment Received',
-        message: '$200 has been credited to your wallet for Photoshoot Makeup',
-        time: '3 hours ago',
-        unread: true,
-        icon: 'attach-money',
-        color: '#00C853', // Green
-        bgColor: '#E8F5E9',
-    },
-    {
-        id: '4',
-        type: 'review',
-        title: 'New Review',
-        message: 'Jessica Miller left you a 5-star review',
-        time: '5 hours ago',
-        unread: false,
-        icon: 'star',
-        color: '#FFAB00', // Amber
-        bgColor: '#FFF8E1',
-    },
-    {
-        id: '5',
-        type: 'processing',
-        title: 'Payment Processing',
-        message: '$450 from Bridal Makeup is being processed',
-        time: '1 day ago',
-        unread: false,
-        icon: 'access-time',
-        color: '#2962FF', // Blue
-        bgColor: '#E3F2FD',
-    },
-    {
-        id: '6',
         type: 'alert',
-        title: 'Upcoming Service',
-        message: 'You have a booking tomorrow at 2:00 PM with Emily Davis',
-        time: '1 day ago',
-        unread: false,
-        icon: 'error-outline',
-        color: '#FF6D00', // Orange
-        bgColor: '#FFF3E0',
-    },
-    {
-        id: '7',
-        type: 'profile',
-        title: 'Profile Views',
-        message: 'Your portfolio was viewed 15 times this week',
-        time: '2 days ago',
-        unread: false,
-        icon: 'person-outline',
-        color: '#AA00FF', // Purple accent
-        bgColor: '#F3E5F5',
-    },
-    {
-        id: '8',
-        type: 'offer',
-        title: 'Special Offer',
-        message: 'Boost your profile visibility for 20% off this weekend',
-        time: '3 days ago',
-        unread: false,
-        icon: 'card-giftcard',
-        color: '#F50057', // Pink
-        bgColor: '#FCE4EC',
-    },
+        title: 'Welcome to MakeupSeven',
+        message: 'Start by completing your artist profile to get more bookings.',
+        time: 'Just now',
+        unread: true,
+        icon: 'stars',
+        color: '#8855FF',
+        bgColor: '#F3EFFF',
+    }
 ];
 
 const FILTERS = ['All', 'Bookings', 'Payments', 'Reviews'];
 
 const ArtistNotificationScreen = ({ navigation }: any) => {
+    const { userToken } = useAuth();
     const [selectedFilter, setSelectedFilter] = useState('All');
+    const [loading, setLoading] = useState(false);
+    const [notifications, setNotifications] = useState<any[]>(NOTIFICATIONS_DEFAULT);
 
-    const renderItem = ({ item }: { item: typeof NOTIFICATIONS[0] }) => (
+    const fetchNotifications = React.useCallback(async () => {
+        try {
+            setLoading(true);
+            const token = userToken || await getToken();
+            if (!token) return;
+
+            // Using ledger as a proxy for notifications since there's no explicit notification API
+            const response = await apiCall('/reward/user/wallet/ledger', { method: 'GET', token });
+            const list = Array.isArray(response) ? response : (response?.ledger || response?.data || []);
+
+            if (list.length > 0) {
+                const mapped = list.map((item: any) => ({
+                    id: item.id || item._id,
+                    type: item.type === 'credit' ? 'payment' : 'processing',
+                    title: item.title || (item.type === 'credit' ? 'Payment Received' : 'Transaction'),
+                    message: item.description || (item.type === 'credit' ? `You earned ₹${item.points || item.amount}` : 'Transaction processed'),
+                    time: new Date(item.createdAt).toLocaleDateString(),
+                    unread: false,
+                    icon: item.type === 'credit' ? 'attach-money' : 'access-time',
+                    color: item.type === 'credit' ? '#00C853' : '#2962FF',
+                    bgColor: item.type === 'credit' ? '#E8F5E9' : '#E3F2FD',
+                }));
+                // Combine with default welcome message
+                setNotifications([...NOTIFICATIONS_DEFAULT, ...mapped]);
+            }
+        } catch (error) {
+            // Ledger 404 means no transactions yet, which is normal for new users
+            console.log('[Notifications] Ledger info not available yet (normal for new users)');
+            setNotifications(NOTIFICATIONS_DEFAULT);
+        } finally {
+            setLoading(false);
+        }
+    }, [userToken]);
+
+    React.useEffect(() => {
+        fetchNotifications();
+    }, [fetchNotifications]);
+
+    const renderItem = ({ item }: { item: any }) => (
         <View style={styles.notificationCard}>
             <View style={[styles.iconContainer, { backgroundColor: item.bgColor }]}>
                 <Icon name={item.icon} size={24} color={item.color} />
@@ -125,8 +92,8 @@ const ArtistNotificationScreen = ({ navigation }: any) => {
                     <Icon name="arrow-back" size={24} color="#555" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Notification</Text>
-                <TouchableOpacity style={styles.markReadButton}>
-                    <Icon name="done-all" size={24} color="#8855FF" />
+                <TouchableOpacity style={styles.markReadButton} onPress={fetchNotifications}>
+                    <Icon name="refresh" size={24} color="#8855FF" />
                 </TouchableOpacity>
             </View>
 
@@ -157,11 +124,20 @@ const ArtistNotificationScreen = ({ navigation }: any) => {
 
             {/* List */}
             <FlatList
-                data={NOTIFICATIONS}
+                data={notifications}
                 keyExtractor={(item) => item.id}
                 renderItem={renderItem}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
+                refreshing={loading}
+                onRefresh={fetchNotifications}
+                ListEmptyComponent={
+                    !loading ? (
+                        <View style={{ padding: 40, alignItems: 'center' }}>
+                            <Text style={{ color: '#999' }}>No notifications found</Text>
+                        </View>
+                    ) : null
+                }
             />
         </SafeAreaView>
     );

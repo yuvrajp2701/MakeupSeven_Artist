@@ -93,18 +93,16 @@ const ServiceOngoingScreen = () => {
           </View>
 
           {/* COMPLETE SERVICE */}
-<TouchableOpacity
-  style={styles.completeBtn}
-  onPress={() =>
-    navigation.navigate('CustomerOtp', {
-      name: params.name,
-      service: params.service,
-      price: params.price,
-    })
-  }
->
-  <Text style={styles.completeText}>Complete service</Text>
-</TouchableOpacity>
+          <TouchableOpacity
+            style={styles.completeBtn}
+            onPress={() =>
+              navigation.navigate('CustomerOtp', {
+                ...params,
+              })
+            }
+          >
+            <Text style={styles.completeText}>Complete service</Text>
+          </TouchableOpacity>
 
         </View>
       </ScrollView>

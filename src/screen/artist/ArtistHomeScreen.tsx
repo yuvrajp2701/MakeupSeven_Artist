@@ -6,38 +6,201 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import LinearGradient from 'react-native-linear-gradient';
 import ScreenView from '../../utils/ScreenView';
+import { apiCall } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 const ArtistHomeScreen = ({ navigation }: any) => {
-  // Assuming new user state for now
-  const isNewUser = false;
+  const { userToken, logout } = useAuth();
+  // Assuming new user state for now -- TODO: Fetch from API or Auth
+  const [isNewUser, setIsNewUser] = React.useState(false); // Changed to useState
+  const [refreshing, setRefreshing] = React.useState(false); // Added refreshing state
+  const [userName, setUserName] = React.useState('Artist');
+
+  const [loading, setLoading] = React.useState(true);
+  const [servicesCount, setServicesCount] = React.useState(0);
+  const [bookingsCount, setBookingsCount] = React.useState(0);
+  const [rating, setRating] = React.useState(0);
+  const [totalEarnings, setTotalEarnings] = React.useState(0);
+  const [monthlyEarnings, setMonthlyEarnings] = React.useState(0);
+  const [upcomingBookings, setUpcomingBookings] = React.useState<any[]>([]);
+  const [activities, setActivities] = React.useState<any[]>([]);
+
+  // Extracted fetchHomeData into a useCallback for reusability
+  const fetchHomeData = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setRefreshing(true);
+
+      if (!userToken) {
+        console.log('No token found, skipping API calls');
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      const token = userToken;
+
+      // 1. Get User Details
+      try {
+        const response = await apiCall('/auth/me', { method: 'GET', token });
+        const user = response?.user || response;
+
+        if (user) {
+          setUserName(user.name || 'Artist');
+
+          if (user.serviceProvider) {
+            setRating(user.serviceProvider.averageRating || 0);
+            setBookingsCount(user.serviceProvider.totalBookings || 0);
+          }
+
+          // Check both profile completion and admin approval
+          // DEVELOPER BYPASS: If role is ARTIST or SERVICE_PROVIDER, treat as approved for testing
+          const isApproved = user.serviceProvider?.approvalStatus === 'APPROVED' || user.role === 'ARTIST' || user.role === 'SERVICE_PROVIDER';
+          const isComplete = user.isProfileComplete;
+
+          // If approved, they are NOT a new user (show dashboard)
+          setIsNewUser(!(isComplete || isApproved));
+        }
+
+        // 1.1 Get Wallet/Earnings
+        try {
+          const walletResponse = await apiCall('/reward/user/wallet', { method: 'GET', token });
+          if (walletResponse && typeof walletResponse === 'object') {
+            setTotalEarnings(walletResponse.totalPoints || walletResponse.balance || 0);
+          }
+
+          // 1.2 Get Activity/Ledger
+          const ledgerResponse = await apiCall('/reward/user/wallet/ledger', { method: 'GET', token });
+          const ledgerList = Array.isArray(ledgerResponse) ? ledgerResponse : (ledgerResponse?.ledger || ledgerResponse?.data || []);
+
+          if (ledgerList.length > 0) {
+            // Calculate This Month Earnings
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+
+            const thisMonthEarnings = ledgerList.reduce((acc: number, item: any) => {
+              const itemDate = new Date(item.createdAt);
+              if (
+                item.type === 'credit' &&
+                itemDate.getMonth() === currentMonth &&
+                itemDate.getFullYear() === currentYear
+              ) {
+                return acc + (item.points || item.amount || 0);
+              }
+              return acc;
+            }, 0);
+
+            setMonthlyEarnings(thisMonthEarnings);
+
+            const mappedActivities = ledgerList.map((item: any) => ({
+              id: item.id || item._id,
+              icon: item.type === 'credit' ? 'money' : 'sign-out',
+              title: item.title || (item.type === 'credit' ? 'Earnings' : 'Withdrawal'),
+              sub: item.description || '',
+              amount: (item.type === 'credit' ? '+₹' : '-₹') + (item.points || item.amount || 0),
+              timeAgo: new Date(item.createdAt).toLocaleDateString()
+            }));
+            setActivities(mappedActivities.slice(0, 5));
+          }
+        } catch (e) {
+          // New users or empty wallets return 404, we handle this silently
+          console.log('[Home] Wallet info not yet available for this user');
+          setTotalEarnings(0);
+        }
+
+      } catch (e) {
+        console.warn('Profile fetch error:', e);
+      }
+
+      // 2. Get My Services (Count)
+      try {
+        const response = await apiCall('/services/my', { method: 'GET', token });
+        const list = Array.isArray(response) ? response : (response?.services || []);
+        setServicesCount(list.length);
+      } catch (e) {
+        console.warn('Services fetch error:', e);
+      }
+
+      // 3. Get Bookings
+      try {
+        const bookingsData = await apiCall('/booking', { method: 'GET', token });
+        const list = Array.isArray(bookingsData) ? bookingsData : (bookingsData?.bookings || bookingsData?.data || []);
+
+        if (list.length > 0) {
+          // Sort by date (newest first)
+          const sorted = [...list].sort((a: any, b: any) => {
+            const dateA = new Date(a.bookingDate || a.date).getTime();
+            const dateB = new Date(b.bookingDate || b.date).getTime();
+            return dateB - dateA;
+          });
+
+          setUpcomingBookings(sorted.slice(0, 3));
+        } else {
+          setUpcomingBookings([]);
+        }
+      } catch (e) {
+        console.warn('Bookings fetch error:', e);
+      }
+
+    } catch (e) {
+      console.warn('Home data fetch error:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []); // Dependencies for useCallback
+
+  React.useEffect(() => {
+    fetchHomeData();
+  }, [fetchHomeData]); // Re-run effect if fetchHomeData changes (unlikely with empty deps)
+
+  const onRefresh = React.useCallback(() => {
+    fetchHomeData(); // Call the data fetching function
+  }, [fetchHomeData]);
 
   return (
     <ScreenView>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <View style={styles.container}>
 
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <Text style={styles.hello}>Hey Artist 👋</Text>
-              <Text style={styles.name}>Priya Sharma</Text>
+              <Text style={styles.hello}>Hey {userName} 👋</Text>
+              <Text style={styles.name}>{userName}</Text>
             </View>
 
-            <TouchableOpacity style={styles.bell} onPress={() => navigation.navigate('Notifications')}>
-              <FontAwesome name="bell-o" size={20} color="#000" />
-              <View style={styles.dot} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity
+                style={[styles.bell, { marginRight: 10 }]}
+                onPress={() => logout()}
+              >
+                <FontAwesome name="sign-out" size={20} color="#000" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.bell} onPress={() => navigation.navigate('Notifications')}>
+                <FontAwesome name="bell-o" size={20} color="#000" />
+                <View style={styles.dot} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Stats */}
           <View style={styles.statsRow}>
-            <StatCard title="This Month" value={isNewUser ? "₹0" : "₹3,240"} icon="rupee" />
-            <StatCard title="Rating" value={isNewUser ? "0" : "4.9"} icon="star-o" />
-            <StatCard title="Bookings" value={isNewUser ? "0" : "48"} icon="calendar-o" />
+            <StatCard title="This Month" value={isNewUser ? "₹0" : `₹${monthlyEarnings}`} icon="rupee" />
+            <StatCard title="Rating" value={isNewUser ? "0" : rating.toFixed(1)} icon="star-o" />
+            <StatCard title="Bookings" value={isNewUser ? "0" : bookingsCount.toString()} icon="calendar-o" />
           </View>
 
           {isNewUser ? (
@@ -46,7 +209,7 @@ const ArtistHomeScreen = ({ navigation }: any) => {
               onPress={() => navigation.navigate('profile')}
             >
               <LinearGradient
-                colors={['#FFEDD5', '#FED7AA']} // Light peach/orange gradient
+                colors={['#FFEDD5', '#FED7AA']}
                 style={styles.createPortfolioCard}
               >
                 <View style={styles.iconContainer}>
@@ -64,9 +227,9 @@ const ArtistHomeScreen = ({ navigation }: any) => {
                   colors={['#7C3AED', '#8B5CF6']}
                   style={styles.quickCard}
                 >
-                  <FontAwesome name="book" size={30} color="#fff" />
-                  <Text style={styles.quickTitle}>Courses</Text>
-                  <Text style={styles.quickSub}>1 completed</Text>
+                  <FontAwesome name="list-alt" size={30} color="#fff" />
+                  <Text style={styles.quickTitle}>Services</Text>
+                  <Text style={styles.quickSub}>{servicesCount} active</Text>
                 </LinearGradient>
 
                 <TouchableOpacity
@@ -86,21 +249,39 @@ const ArtistHomeScreen = ({ navigation }: any) => {
               </View>
 
               {/* Upcoming Bookings */}
-              <SectionHeader title="Upcoming Bookings" action="See All" />
-
-              <BookingCard
-                name="Emily Davis"
-                service="Bridal Hair Styling"
-                time="Tomorrow · 2:00 PM"
-                price="₹280"
+              <SectionHeader
+                title="Upcoming Bookings"
+                action="See All"
+                onPress={() => navigation.navigate('Bookings')}
               />
 
-              <BookingCard
-                name="Sarah Johnson"
-                service="Evening Makeup"
-                time="Dec 18 · 10:00 AM"
-                price="₹280"
-              />
+              {upcomingBookings.length > 0 ? (
+                upcomingBookings.map((booking, index) => (
+                  <BookingCard
+                    key={booking.id || index}
+                    name={booking.user?.name || booking.userName || 'Customer'}
+                    service={booking.service?.name || booking.serviceName || 'Makeup Service'}
+                    time={new Date(booking.bookingDate || booking.date).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    price={`₹${booking.totalPrice || booking.price || booking.totalAmount || 0}`}
+                    image={booking.user?.profileImage ? { uri: booking.user.profileImage } : null}
+                    onPressCard={() =>
+                      navigation.navigate('Bookings', {
+                        screen: 'BookingDetails',
+                        params: {
+                          ...booking,
+                          bookingId: booking._id || booking.id,
+                          name: booking.user?.name || booking.userName || 'Customer',
+                          price: `₹${booking.totalPrice || booking.price || booking.totalAmount || 0}`,
+                        },
+                      })
+                    }
+                  />
+                ))
+              ) : (
+                <View style={[styles.bookingCard, { justifyContent: 'center', paddingVertical: 30, backgroundColor: '#F9FAFB' }]}>
+                  <Text style={{ color: '#6B7280', textAlign: 'center', fontSize: 16 }}>No upcoming bookings found</Text>
+                </View>
+              )}
 
               {/* Earnings */}
               <SectionHeader title="Earnings Overview" />
@@ -110,27 +291,29 @@ const ArtistHomeScreen = ({ navigation }: any) => {
                 style={styles.earnings}
               >
                 <Text style={styles.earningsLabel}>Total Earnings</Text>
-                <Text style={styles.earningsValue}>₹8,430</Text>
-                <Text style={styles.earningsSub}>+12.5% from last month</Text>
+                <Text style={styles.earningsValue}>₹{totalEarnings}</Text>
+                <Text style={styles.earningsSub}>Updated just now</Text>
               </LinearGradient>
 
               {/* Activity */}
               <SectionHeader title="Recent Activity" />
 
-              <ActivityCard
-                icon="money"
-                title="Payment Received"
-                sub="Photoshoot Makeup service"
-                amount="+₹200"
-                timeAgo="2 hours ago"
-              />
-
-              <ActivityCard
-                icon="star"
-                title="New 5-Star Review"
-                sub="Jessica Miller left a review"
-                timeAgo="2 hours ago"
-              />
+              {activities.length > 0 ? (
+                activities.map((activity) => (
+                  <ActivityCard
+                    key={activity.id}
+                    icon={activity.icon}
+                    title={activity.title}
+                    sub={activity.sub}
+                    amount={activity.amount}
+                    timeAgo={activity.timeAgo}
+                  />
+                ))
+              ) : (
+                <View style={[styles.activityCard, { justifyContent: 'center', paddingVertical: 20 }]}>
+                  <Text style={{ color: '#6B7280', textAlign: 'center' }}>No recent activity yet</Text>
+                </View>
+              )}
             </>
           )}
 
@@ -154,12 +337,16 @@ const StatCard = ({ title, value, icon }: any) => (
   </View>
 );
 
-const SectionHeader = ({ title, action }: any) => (
+const SectionHeader = ({ title, action, onPress }: any) => (
   <View style={styles.sectionHeader}>
     <Text style={styles.sectionTitle}>{title}</Text>
 
-    {action && (
-      <View style={styles.sectionActionRow}>
+    {action ? (
+      <TouchableOpacity
+        style={styles.sectionActionRow}
+        activeOpacity={0.7}
+        onPress={onPress}
+      >
         <Text style={styles.sectionAction}>{action}</Text>
         <FontAwesome
           name="angle-right"
@@ -167,8 +354,8 @@ const SectionHeader = ({ title, action }: any) => (
           color="#7C3AED"
           style={{ marginLeft: 4, marginTop: 1 }}
         />
-      </View>
-    )}
+      </TouchableOpacity>
+    ) : null}
   </View>
 );
 
@@ -191,7 +378,7 @@ const BookingCard = ({ name, service, time, price, image }: any) => (
     </View>
 
     {/* Right Price */}
-    {price && <Text style={styles.bookingPrice}>{price}</Text>}
+    {price ? <Text style={styles.bookingPrice}>{price}</Text> : null}
   </View>
 );
 
@@ -207,13 +394,13 @@ const ActivityCard = ({ icon, title, sub, amount, timeAgo }: any) => (
         <Text style={styles.activitySub}>{sub}</Text>
       </View>
 
-      {amount && <Text style={styles.activityAmount}>{amount}</Text>}
+      {amount ? <Text style={styles.activityAmount}>{amount}</Text> : null}
     </View>
 
     {/* Bottom Time */}
-    {timeAgo && (
+    {timeAgo ? (
       <Text style={styles.activityTime}>{timeAgo}</Text>
-    )}
+    ) : null}
   </View>
 );
 
@@ -293,6 +480,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginVertical: 23,
+    alignItems: 'center',
   },
   sectionActionRow: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -7,12 +7,78 @@ import {
     TextInput,
     ScrollView,
     Image,
+    ActivityIndicator,
+    Alert,
 } from 'react-native';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import ScreenView from '../../utils/ScreenView';
+import { useRoute } from '@react-navigation/native';
+import { apiCall } from '../../services/api';
+import { getToken } from '../../services/auth';
+import { useAuth } from '../../context/AuthContext';
 
 const EditServiceScreen = ({ navigation }: any) => {
+    const route = useRoute<any>();
+    const { userToken } = useAuth();
+    const editingService = route.params?.service;
+
+    const [loading, setLoading] = useState(false);
+    const [name, setName] = useState(editingService?.name || '');
+    const [description, setDescription] = useState(editingService?.description || '');
+    const [duration, setDuration] = useState(editingService?.duration?.toString() || '60');
+    const [basePrice, setBasePrice] = useState(editingService?.basePrice?.toString() || '');
+    const [discountPrice, setDiscountPrice] = useState(editingService?.discountPrice?.toString() || '');
+    const [whoShouldTake, setWhoShouldTake] = useState(editingService?.whoShouldTake || '');
+    const [whoShouldAvoid, setWhoShouldAvoid] = useState(editingService?.whoShouldAvoid || '');
+
     const [avoidService, setAvoidService] = useState(true);
+
+    const handleSave = async () => {
+        if (!name || !basePrice || !duration) {
+            Alert.alert("Validation", "Please fill name, price and duration.");
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const token = userToken || await getToken();
+            if (!token) return;
+
+            const payload = {
+                name,
+                description,
+                duration: parseInt(duration),
+                basePrice: parseFloat(basePrice),
+                discountPrice: discountPrice ? parseFloat(discountPrice) : parseFloat(basePrice),
+                whoShouldTake,
+                whoShouldAvoid,
+                category: editingService?.category || "Makeup", // Default category
+            };
+
+            if (editingService?.id || editingService?._id) {
+                const id = editingService.id || editingService._id;
+                await apiCall(`/services/${id}`, {
+                    method: 'PUT',
+                    token,
+                    body: payload
+                });
+                Alert.alert("Success", "Service updated successfully");
+            } else {
+                await apiCall('/services', {
+                    method: 'POST',
+                    token,
+                    body: payload
+                });
+                Alert.alert("Success", "Service created successfully");
+            }
+            navigation.goBack();
+        } catch (e: any) {
+            console.error('Save service error:', e);
+            Alert.alert("Error", e.message || "Failed to save service");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <ScreenView>
@@ -25,35 +91,22 @@ const EditServiceScreen = ({ navigation }: any) => {
                             <FontAwesome name="angle-left" size={22} color="#7B4DFF" />
                         </TouchableOpacity>
 
-                        <Text style={styles.headerTitle}>Edit services</Text>
+                        <Text style={styles.headerTitle}>{editingService ? 'Edit Service' : 'Add Service'}</Text>
 
-                        <TouchableOpacity style={styles.saveBtn}>
-                            <FontAwesome name="save" size={18} color="#7B4DFF" />
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* ADD SERVICE */}
-                    <View style={styles.addServiceRow}>
-                        <Text style={styles.addServiceText}>Add service</Text>
-                        <TouchableOpacity style={styles.addIcon}>
-                            <FontAwesome name="plus" size={14} color="#7B4DFF" />
+                        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={loading}>
+                            {loading ? <ActivityIndicator size="small" color="#7B4DFF" /> : <FontAwesome name="save" size={18} color="#7B4DFF" />}
                         </TouchableOpacity>
                     </View>
 
                     {/* SERVICE CARD */}
                     <View style={styles.serviceCard}>
-
-                        {/* Service Header */}
-                        <View style={styles.serviceHeader}>
-                            <Text style={styles.serviceTitle}>Service 1</Text>
-                            <FontAwesome name="angle-up" size={18} color="#9CA3AF" />
-                        </View>
-
                         {/* Service Name */}
                         <Text style={styles.label}>Service Name</Text>
                         <TextInput
                             style={styles.input}
-                            value="Bridal Makeup"
+                            placeholder="e.g. Bridal Makeup"
+                            value={name}
+                            onChangeText={setName}
                         />
 
                         {/* Description */}
@@ -61,109 +114,73 @@ const EditServiceScreen = ({ navigation }: any) => {
                         <TextInput
                             style={[styles.input, styles.textArea]}
                             multiline
-                            value="Complete bridal look with trial"
+                            placeholder="Describe your service..."
+                            value={description}
+                            onChangeText={setDescription}
                         />
 
                         {/* Duration */}
-                        <Text style={styles.label}>Duration</Text>
+                        <Text style={styles.label}>Duration (minutes)</Text>
                         <View style={styles.durationBox}>
                             <FontAwesome name="clock-o" size={16} color="#6B7280" />
-                            <Text style={styles.durationText}>2 hours</Text>
+                            <TextInput
+                                style={[styles.input, { flex: 1, backgroundColor: 'transparent' }]}
+                                value={duration}
+                                onChangeText={setDuration}
+                                keyboardType="numeric"
+                            />
                         </View>
 
                         {/* Prices */}
                         <View style={styles.priceRow}>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.label}>Normal Price (₹)</Text>
-                                <TextInput style={styles.input} value="2200" keyboardType="numeric" />
+                                <Text style={styles.label}>Base Price (₹)</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={basePrice}
+                                    onChangeText={setBasePrice}
+                                    keyboardType="numeric"
+                                />
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.label}>Discount Price (₹)</Text>
-                                <TextInput style={styles.input} value="2200" keyboardType="numeric" />
-                            </View>
-                        </View>
-
-                        {/* Upload Images */}
-                        <Text style={styles.label}>Upload service images</Text>
-                        <TouchableOpacity style={styles.uploadBox}>
-                            <FontAwesome name="upload" size={42} color="#7B4DFF" />
-                            <Text style={styles.uploadText}>Upload Images</Text>
-                            <Text style={styles.uploadSub}>PNG, JPG up to 10MB each</Text>
-                        </TouchableOpacity>
-                        <Text style={styles.label}>Services Images</Text>
-
-                        {/* Image Preview */}
-                        <View style={styles.imageRow}>
-                            {[1, 2, 3].map(i => (
-                                <Image
-                                    key={i}
-                                    source={require('../../asset/images/artists1.png')}
-                                    style={styles.previewImage}
+                                <TextInput
+                                    style={styles.input}
+                                    value={discountPrice}
+                                    onChangeText={setDiscountPrice}
+                                    keyboardType="numeric"
                                 />
-                            ))}
+                            </View>
                         </View>
 
                         {/* Extra Info */}
                         <Text style={styles.sectionTitle}>Extra service information</Text>
 
-                        {/* Procedures */}
-                        <Text style={styles.label}>Procedures</Text>
-
-                        <View style={styles.procedureBox}>
-                            <Text style={styles.procedureTitle}>1. Cleansing</Text>
-                            <Text style={styles.procedureSub}>
-                                Removes dirt & makeup for clean base
-                            </Text>
-                        </View>
-
-                        <View style={styles.procedureBox}>
-                            <Text style={styles.procedureTitle}>2. Steam & Exfoliation</Text>
-                            <Text style={styles.procedureSub}>
-                                Opens pores + removes dead skin cells
-                            </Text>
-                        </View>
-
-                        <TouchableOpacity style={styles.editProcedureBtn}>
-                            <Text style={styles.editProcedureText}>Edit procedure</Text>
-                        </TouchableOpacity>
-
-                        {/* Toggle */}
-                        <View style={styles.toggleBox}>
-                            <View>
-                                <Text style={styles.toggleTitle}>
-                                    Who Should Take / Avoid This Service
-                                </Text>
-                                <Text style={styles.toggleSub}>
-                                    Who should take this service?
-                                </Text>
-                            </View>
-
-                            <TouchableOpacity
-                                style={[
-                                    styles.toggle,
-                                    avoidService && styles.toggleActive,
-                                ]}
-                                onPress={() => setAvoidService(!avoidService)}
-                            >
-                                <View style={styles.toggleDot} />
-                            </TouchableOpacity>
-                        </View>
-
                         {/* Text Areas */}
+                        <Text style={styles.label}>Who should take this service?</Text>
                         <TextInput
                             style={[styles.input, styles.textArea]}
-                            placeholder="Who should take this service?"
-                            value="To increase glow..."
+                            placeholder="e.g. To increase glow..."
+                            value={whoShouldTake}
+                            onChangeText={setWhoShouldTake}
                         />
 
+                        <Text style={styles.label}>Who should avoid this service?</Text>
                         <TextInput
                             style={[styles.input, styles.textArea]}
-                            placeholder="Who should avoid this service?"
-                            value="To increase glow..."
+                            placeholder="e.g. If you have active acne..."
+                            value={whoShouldAvoid}
+                            onChangeText={setWhoShouldAvoid}
                         />
 
+                        <TouchableOpacity
+                            style={[styles.saveMainBtn, loading && { opacity: 0.7 }]}
+                            onPress={handleSave}
+                            disabled={loading}
+                        >
+                            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveMainText}>Save Service</Text>}
+                        </TouchableOpacity>
                     </View>
-
                 </View>
             </ScrollView>
         </ScreenView>
@@ -171,6 +188,7 @@ const EditServiceScreen = ({ navigation }: any) => {
 };
 
 export default EditServiceScreen;
+
 const styles = StyleSheet.create({
     container: { paddingBottom: 40 },
 
@@ -205,42 +223,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
 
-    addServiceRow: {
-        margin: 20,
-        padding: 14,
-        backgroundColor: '#fff',
-        borderRadius: 14,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        elevation: 2,
-    },
-    addServiceText: { fontWeight: '400', fontSize: 22, },
-    addIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 14,
-        backgroundColor: '#EFE4FF',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-
     serviceCard: {
         backgroundColor: '#fff',
         marginHorizontal: 20,
         borderRadius: 16,
         padding: 16,
+        marginTop: 20,
         elevation: 2,
     },
 
-    serviceHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 16,
-    },
-    serviceTitle: { fontSize: 18, fontWeight: '600' },
-
     label: {
-        fontSize: 15,
+        fontSize: 14,
         color: '#6B7280',
         marginTop: 14,
         marginBottom: 6,
@@ -251,6 +244,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         padding: 12,
         fontSize: 14,
+        color: '#000',
     },
     textArea: {
         height: 80,
@@ -261,96 +255,32 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#F9FAFB',
-        padding: 12,
+        paddingHorizontal: 12,
         borderRadius: 12,
     },
-    durationText: { marginLeft: 8 },
 
     priceRow: {
         flexDirection: 'row',
         gap: 12,
     },
 
-    uploadBox: {
-        marginTop: 10,
-        borderWidth: 1,
-        borderStyle: 'dashed',
-        borderColor: '#7B4DFF',
-        borderRadius: 14,
-        padding: 20,
-        alignItems: 'center',
-    },
-    uploadText: { marginTop: 15, fontWeight: '500', fontSize: 17, },
-    uploadSub: { fontSize: 16, color: '#6B7280', marginTop: 10, },
-
-    imageRow: {
-        flexDirection: 'row',
-        marginTop: 10,
-        marginBottom: 20,
-    },
-    previewImage: {
-        width: 80,
-        height: 80,
-        borderRadius: 12,
-        marginRight: 10,
-    },
-
     sectionTitle: {
         fontSize: 15,
         fontWeight: '600',
         marginTop: 20,
+        color: '#000',
     },
 
-    procedureBox: {
-        backgroundColor: '#F9FAFB',
-        borderRadius: 12,
-        padding: 12,
-        marginTop: 10,
-    },
-    procedureTitle: { fontWeight: '600', fontSize: 17, },
-    procedureSub: { fontSize: 15, color: '#6B7280' },
-
-    editProcedureBtn: {
-        width: '100%',
-        marginTop: 12,
-        alignSelf: 'center',
-        borderWidth: 1,
-        borderColor: '#7B4DFF',
-        backgroundColor: '#d4c8f4cd',
-        paddingHorizontal: 18,
-        paddingVertical: 8,
+    saveMainBtn: {
+        marginTop: 24,
+        backgroundColor: '#7B4DFF',
+        paddingVertical: 16,
         borderRadius: 14,
-        justifyContent: 'center',
         alignItems: 'center',
     },
-    editProcedureText: { color: '#7B4DFF' },
-
-    toggleBox: {
-        marginTop: 20,
-        padding: 14,
-        backgroundColor: '#F3EDFF',
-        borderRadius: 14,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    toggleTitle: { fontWeight: '600' },
-    toggleSub: { fontSize: 12, color: '#6B7280' },
-
-    toggle: {
-        width: 44,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: '#E5E7EB',
-        justifyContent: 'center',
-    },
-    toggleActive: {
-        backgroundColor: '#7B4DFF',
-    },
-    toggleDot: {
-        width: 18,
-        height: 18,
-        borderRadius: 9,
-        backgroundColor: '#fff',
-        marginLeft: 3,
+    saveMainText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
     },
 });

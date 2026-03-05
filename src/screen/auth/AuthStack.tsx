@@ -7,7 +7,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 export type AuthStackParamList = {
     Splash: undefined;
     LoginWithPhone: undefined;
-    OTPScreen: undefined;
+    OTPScreen: {
+        phone: string;
+        generatedOtp: string;
+        artistEmail: string;
+    };
     LocationSearch: undefined;
     ReferralCode: undefined;
 };

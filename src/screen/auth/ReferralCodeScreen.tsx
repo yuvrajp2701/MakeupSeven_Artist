@@ -5,13 +5,52 @@ import {
     TextInput,
     StyleSheet,
     TouchableOpacity,
-    Image
+    Image,
+    ActivityIndicator,
+    Alert
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Colors from '../../utils/Colors';
 import { scale, verticalScale, moderateScale, hp } from '../../utils/Responsive';
+import { apiCall } from '../../services/api';
+import { getToken } from '../../services/auth';
 
 const ReferralCodeScreen = ({ navigation }: any) => {
+    const [referralCode, setReferralCode] = React.useState('');
+    const [loading, setLoading] = React.useState(false);
+
+    const handleApplyReferral = async () => {
+        if (!referralCode) {
+            handleSkip();
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const token = await getToken();
+            const response = await apiCall('/auth/apply', {
+                method: 'POST',
+                token: token || undefined,
+                body: { referralCode: referralCode }
+            });
+
+            console.log('Referral applied successfully:', response);
+            Alert.alert('Success', 'Referral code applied! Enjoy your rewards.');
+            handleSkip();
+        } catch (error: any) {
+            console.warn('Referral application failed:', error);
+            Alert.alert('Error', error.message || 'Invalid referral code or already used.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSkip = () => {
+        navigation.reset({
+            index: 0,
+            routes: [{ name: 'Artist' }],
+        });
+    };
     return (
         <View style={styles.container}>
             <LinearGradient
@@ -47,7 +86,21 @@ const ReferralCodeScreen = ({ navigation }: any) => {
                         style={styles.input}
                         placeholder="Paste code"
                         placeholderTextColor={Colors.textSecondary}
+                        value={referralCode}
+                        onChangeText={setReferralCode}
+                        autoCapitalize="characters"
                     />
+                    <TouchableOpacity
+                        style={[styles.applyBtn, !referralCode && { opacity: 0.6 }]}
+                        onPress={handleApplyReferral}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color={Colors.white} />
+                        ) : (
+                            <Text style={styles.applyBtnText}>Apply Code</Text>
+                        )}
+                    </TouchableOpacity>
                     <View style={styles.bonusRow}>
                         <Text style={styles.bonusIcon}>💡</Text>
                         <Text style={styles.bonusText}>Bonus:</Text>
@@ -133,8 +186,21 @@ const styles = StyleSheet.create({
         paddingHorizontal: scale(12),
         fontSize: scale(15),
         height: scale(44),
-        marginBottom: verticalScale(10),
+        marginBottom: verticalScale(16),
         backgroundColor: Colors.white,
+    },
+    applyBtn: {
+        backgroundColor: Colors.primary,
+        height: scale(44),
+        borderRadius: moderateScale(10),
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: verticalScale(20),
+    },
+    applyBtnText: {
+        color: Colors.white,
+        fontSize: scale(15),
+        fontWeight: '600',
     },
     bonusRow: {
         flexDirection: 'row',

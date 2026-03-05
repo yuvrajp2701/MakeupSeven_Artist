@@ -1,0 +1,2553 @@
+{
+  "info": {
+    "_postman_id": "16e511f5-b0ef-4dcc-a806-ba930264d520",
+    "name": "Makeupseven",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "51550233",
+    "_collection_link": "https://go.postman.co/collection/29977001-16e511f5-b0ef-4dcc-a806-ba930264d520?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Test2\",\r\n  \"mobile\": \"3454236789\",\r\n  \"password\": \"password123\",\r\n  \"email\": \"test3@mail.com\",       \r\n  \"role\": \"USER\"             \r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/auth/register",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// 1. Get the JSON response\r",
+                  "var jsonData = pm.response.json();\r",
+                  "\r",
+                  "// 2. Check if the token exists directly in the response\r",
+                  "if (jsonData.token) {\r",
+                  "    \r",
+                  "    // 3. Save the token into the Collection Variable\r",
+                  "    pm.collectionVariables.set(\"authToken\", jsonData.token);\r",
+                  "    \r",
+                  "    console.log(\"Token saved successfully!\");\r",
+                  "} else {\r",
+                  "    console.log(\"Token not found. Check the JSON structure again.\");\r",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"identifier\": \"anuraj2@gmail.com\",  \r\n  \"password\": \"password123\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/auth/login",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Referral",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"referralCode\": \"MIG_6986fd285f397a0c0e753d25_1771624594258\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/auth/apply",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "auth",
+                "apply"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "profile",
+      "item": [
+        {
+          "name": "profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/auth/me",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Profile",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/auth/me",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@email.com\",\r\n  \"mobile\": \"8084877868\",\r\n  \"gender\": \"Male\",\r\n  \"dob\": \"1995-08-15T00:00:00.000Z\",\r\n  \"addresses\": [\r\n    {\r\n      \"street\": \"Sector 16 C\",\r\n      \"city\": \"Dwarka\",\r\n      \"state\": \"New Delhi\",\r\n      \"pincode\": \"110078\",\r\n      \"latitude\": 28.59,\r\n      \"longitude\": 77.03,\r\n      \"isDefault\": true\r\n    }\r\n  ]\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/auth/me",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Allusers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/users",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "users"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "ServiceProvider Profile",
+      "item": [
+        {
+          "name": "GetServiceProviderProfile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/service-providers/profile",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers",
+                "profile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DeleteServiceProviderProfile",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/service-providers/profile",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers",
+                "profile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ServiceProviderProfile",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@gmail.com\",\r\n  \"bio\": \"Certified makeup artist with 10 years experience.\",\r\n  \"experience\": \"5 Years\",\r\n  \"gender\": \"male\",\r\n  \"targetedCustomers\": [\"Female\", \"Others\"],\r\n  \"languagesSpoken\": [\"English\", \"Hindi\", \"Punjabi\"],\r\n  \"experienceLevel\": \"Expert\",\r\n  \"specialization\": [\"Bridal\", \"Party Makeup\"]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-providers/profile",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers",
+                "profile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ServiceProviderportfolio",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "files",
+                  "type": "file",
+                  "uuid": "dd8aa79b-bbde-464b-b4bd-12ae50d88989",
+                  "src": "postman-cloud:///1eff13d4-fc56-43d0-be68-6bea5a29d511"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-providers/portfolio",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers",
+                "portfolio"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "StatusApprovedByAdmin",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"status\": \"APPROVED\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-providers/698478333b084291a4750c27/status",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers",
+                "698478333b084291a4750c27",
+                "status"
+              ]
+            },
+            "description": "{  \n\"status\": \"APPROVED\"  \n}\n\n{  \n\"status\": \"REJECTED\",  \n\"rejectionReason\": \"Invalid documents.\"  \n}"
+          },
+          "response": []
+        },
+        {
+          "name": "GetServiceProviderProfileId",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@gmail.com\",\r\n  \"bio\": \"Certified makeup artist with 5 years experience.\",\r\n  \"experience\": \"5 Years\",\r\n  \"gender\": \"Female\",\r\n  \"interest\": [\"Female\", \"Others\"],\r\n  \"languagesSpoken\": [\"English\", \"Hindi\", \"Punjabi\"],\r\n  \"experienceLevel\": \"Expert\",\r\n  \"specialization\": [\"Bridal\", \"Party Makeup\"]\r\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-providers/profile/698478333b084291a4750c27",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers",
+                "profile",
+                "698478333b084291a4750c27"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetPortfolioId",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@gmail.com\",\r\n  \"bio\": \"Certified makeup artist with 5 years experience.\",\r\n  \"experience\": \"5 Years\",\r\n  \"gender\": \"Female\",\r\n  \"interest\": [\"Female\", \"Others\"],\r\n  \"languagesSpoken\": [\"English\", \"Hindi\", \"Punjabi\"],\r\n  \"experienceLevel\": \"Expert\",\r\n  \"specialization\": [\"Bridal\", \"Party Makeup\"]\r\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-providers/portfolio/698478333b084291a4750c27",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers",
+                "portfolio",
+                "698478333b084291a4750c27"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "StatusCheckbyAdmin",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@gmail.com\",\r\n  \"bio\": \"Certified makeup artist with 5 years experience.\",\r\n  \"experience\": \"5 Years\",\r\n  \"gender\": \"Female\",\r\n  \"interest\": [\"Female\", \"Others\"],\r\n  \"languagesSpoken\": [\"English\", \"Hindi\", \"Punjabi\"],\r\n  \"experienceLevel\": \"Expert\",\r\n  \"specialization\": [\"Bridal\", \"Party Makeup\"]\r\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-providers/admin?status=PENDING",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers",
+                "admin"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            },
+            "description": "PENDING\n\nREJECTED\n\nAPPROVED"
+          },
+          "response": []
+        },
+        {
+          "name": "AllServiceProvidersByAdmin",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@gmail.com\",\r\n  \"bio\": \"Certified makeup artist with 5 years experience.\",\r\n  \"experience\": \"5 Years\",\r\n  \"gender\": \"Female\",\r\n  \"interest\": [\"Female\", \"Others\"],\r\n  \"languagesSpoken\": [\"English\", \"Hindi\", \"Punjabi\"],\r\n  \"experienceLevel\": \"Expert\",\r\n  \"specialization\": [\"Bridal\", \"Party Makeup\"]\r\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-providers/admin",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers",
+                "admin"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DeleteServiceProvider",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@gmail.com\",\r\n  \"bio\": \"Certified makeup artist with 5 years experience.\",\r\n  \"experience\": \"5 Years\",\r\n  \"gender\": \"Female\",\r\n  \"interest\": [\"Female\", \"Others\"],\r\n  \"languagesSpoken\": [\"English\", \"Hindi\", \"Punjabi\"],\r\n  \"experienceLevel\": \"Expert\",\r\n  \"specialization\": [\"Bridal\", \"Party Makeup\"]\r\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-providers/{id}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers",
+                "{id}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Active Providers with Drafts (Changes)",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@gmail.com\",\r\n  \"bio\": \"Certified makeup artist with 5 years experience.\",\r\n  \"experience\": \"5 Years\",\r\n  \"gender\": \"Female\",\r\n  \"interest\": [\"Female\", \"Others\"],\r\n  \"languagesSpoken\": [\"English\", \"Hindi\", \"Punjabi\"],\r\n  \"experienceLevel\": \"Expert\",\r\n  \"specialization\": [\"Bridal\", \"Party Makeup\"]\r\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-providers/admin?pendingUpdates=true",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers",
+                "admin"
+              ],
+              "query": [
+                {
+                  "key": "pendingUpdates",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetAllServiceProvider",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@gmail.com\",\r\n  \"bio\": \"Certified makeup artist with 5 years experience.\",\r\n  \"experience\": \"5 Years\",\r\n  \"gender\": \"Female\",\r\n  \"interest\": [\"Female\", \"Others\"],\r\n  \"languagesSpoken\": [\"English\", \"Hindi\", \"Punjabi\"],\r\n  \"experienceLevel\": \"Expert\",\r\n  \"specialization\": [\"Bridal\", \"Party Makeup\"]\r\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-providers",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetServiceProviderByid",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@gmail.com\",\r\n  \"bio\": \"Certified makeup artist with 5 years experience.\",\r\n  \"experience\": \"5 Years\",\r\n  \"gender\": \"Female\",\r\n  \"interest\": [\"Female\", \"Others\"],\r\n  \"languagesSpoken\": [\"English\", \"Hindi\", \"Punjabi\"],\r\n  \"experienceLevel\": \"Expert\",\r\n  \"specialization\": [\"Bridal\", \"Party Makeup\"]\r\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-providers/6986fd265f397a0c0e753d24",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers",
+                "6986fd265f397a0c0e753d24"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetPortfolio",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "files",
+                  "type": "file",
+                  "uuid": "dd8aa79b-bbde-464b-b4bd-12ae50d88989",
+                  "src": "postman-cloud:///1eff13d4-fc56-43d0-be68-6bea5a29d511"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-providers/portfolio",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers",
+                "portfolio"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetMyServices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/services/my",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "services",
+                "my"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetMyCategory",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/categories/my",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "categories",
+                "my"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "AllCategories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/categories",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "categoriesPost",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Bridal Makeup 2\",\r\n  \"description\": \"Complete bridal makeup packages 2\",\r\n  \"image\": \"https://placehold.co/600x400\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/categories",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "StatuscheckbyAdmin",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/categories/admin?status=PENDING",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "categories",
+                "admin"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "StatusApprovedByAdmin",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"status\": \"APPROVED\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/categories/69726ce04d3d2f84bb399c71/status",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "categories",
+                "69726ce04d3d2f84bb399c71",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AllCategoriesAdmin",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/categories/admin",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "categories",
+                "admin"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DeleteCategories",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Bridal Makeup\",\r\n  \"description\": \"Complete bridal makeup packages\",\r\n  \"image\": \"https://placehold.co/600x400\"\r\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/categories/696a4a326e4205e2d3f801d9",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "categories",
+                "696a4a326e4205e2d3f801d9"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Services",
+      "item": [
+        {
+          "name": "Allservices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/services",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "services"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ServicesPost",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Premium Bridal Package\",\r\n  \"description\": \"Includes hair, makeup, and draping.\",\r\n  \"basePrice\": 15000,\r\n  \"duration\": 180,\r\n  \"categoryId\": \"698f1be2b8fd8dcd14a31024\",\r\n  \"image\": \"https://placehold.co/600x400\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/services",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "services"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "StatusCheckbyAdmin",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/services/admin?status=PENDING",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "services",
+                "admin"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "StausApprovedByAdmin",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"status\": \"APPROVED\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/services/69996dad804ef5920f0f4a6e/status",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "services",
+                "69996dad804ef5920f0f4a6e",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "AllServicesAdmin",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/services/admin",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "services",
+                "admin"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DeleteServices",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Bridal Makeup\",\r\n  \"description\": \"Complete bridal makeup packages\",\r\n  \"image\": \"https://placehold.co/600x400\"\r\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/services/696a4a666e4205e2d3f801da",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "services",
+                "696a4a666e4205e2d3f801da"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetSpecificCategories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/services?categoryId=698f1be2b8fd8dcd14a31024",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "services"
+              ],
+              "query": [
+                {
+                  "key": "categoryId",
+                  "value": "698f1be2b8fd8dcd14a31024"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetServiceByID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/services/6998a32cc41e55f12dac5230",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "services",
+                "6998a32cc41e55f12dac5230"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Services ByID",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"name\": \"New Service Name\",\r\n    \"description\": \"Updated Description\",\r\n    \"basePrice\": 12000,\r\n    \"duration\": 150,\r\n    \"categoryId\": \"698f1be2b8fd0dcd14a31024\",\r\n    \"normalPrice\": 14000,\r\n    \"discountPrice\": 12000,\r\n    \"whoShouldTake\": \"Everyone\",\r\n    \"whoShouldAvoid\": \"Kids\",\r\n    \"isActive\": false\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/services/69996dad804ef5920f0f4a6e",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "services",
+                "69996dad804ef5920f0f4a6e"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "item": [
+        {
+          "name": "SearchQuery",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@gmail.com\",\r\n  \"bio\": \"Certified makeup artist with 5 years experience.\",\r\n  \"experience\": \"5 Years\",\r\n  \"gender\": \"Female\",\r\n  \"interest\": [\"Female\", \"Others\"],\r\n  \"languagesSpoken\": [\"English\", \"Hindi\", \"Punjabi\"],\r\n  \"experienceLevel\": \"Expert\",\r\n  \"specialization\": [\"Bridal\", \"Party Makeup\"]\r\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/search",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "SearchWithFilter",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/search?q=hair",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "hair"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "ServiceZone",
+      "item": [
+        {
+          "name": "CreateMasterZone",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Gwalior City\",\n  \"type\": \"POLYGON\",\n  \"coordinates\": [\n    [\n      [78.10779542977821, 26.259105650284596],\n      [78.127167155417, 26.162806590084216],\n      [78.23600128486015, 26.20105913627495],\n      [78.10779542977821, 26.259105650284596]\n    ]\n  ]\n  \n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-zones/master",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-zones",
+                "master"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CreateServiceProviderZone",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bus Stand\",\n  \"type\": \"POLYGON\",\n  \"coordinates\": [\n    [\n      [78.12769292101461, 26.240500112073477],\n      [78.12808348731704, 26.22938964603385],\n      [78.126149448305, 26.227306722349795],\n      [78.12769702520694, 26.22695968152992],\n      [78.1292448012531, 26.225571239924847],\n      [78.15033413465517, 26.231127824656937],\n      [78.12769292101461, 26.240500112073477]\n    ]\n  ]\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-zones/artist-area",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-zones",
+                "artist-area"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetProviderInCity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/service-zones/managed-city-providers",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-zones",
+                "managed-city-providers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetServiceZone",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-zones/getServiceZones?type=POLYGON&ownerType=MASTER_CITY&isActive=true",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-zones",
+                "getServiceZones"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "POLYGON"
+                },
+                {
+                  "key": "ownerType",
+                  "value": "MASTER_CITY"
+                },
+                {
+                  "key": "isActive",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Artist Availability",
+      "item": [
+        {
+          "name": "Creates Availability",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"availability\": [\r\n    {\r\n      \"date\": \"2026-02-01\",\r\n      \"startTime\": \"09:00\",\r\n      \"endTime\": \"18:00\"\r\n    },\r\n    {\r\n      \"date\": \"2026-02-11\",\r\n      \"startTime\": \"10:00\",\r\n      \"endTime\": \"17:00\"\r\n    }\r\n  ]\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/artist-availability/artist",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "artist-availability",
+                "artist"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetSlots",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseURL}}/artist-availability/slots/6972489a018299c7da1f09c8?date=2026-03-01&serviceId=6979f9ec855eb7f514d9d2be",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "artist-availability",
+                "slots",
+                "6972489a018299c7da1f09c8"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-03-01"
+                },
+                {
+                  "key": "serviceId",
+                  "value": "6979f9ec855eb7f514d9d2be"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ManageAvaibilityForArtist",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{baseURL}}/artist-availability/manage/698478333b084291a4750c27?date=\"2026-02-10\"",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "artist-availability",
+                "manage",
+                "698478333b084291a4750c27"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "\"2026-02-10\""
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Booking",
+      "item": [
+        {
+          "name": "Booking",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"serviceProviderId\": \"698478333b084291a4750c27\",\r\n  \"serviceId\": \"6984b37e79cead798ace59e5\",\r\n  \"bookingDate\": \"2026-02-10\",\r\n  \"startTime\": \"18:00\",\r\n  \"endTime\": \"14:30\"\r\n}\r\n"
+            },
+            "url": {
+              "raw": "{{baseURL}}/booking",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "booking"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetBookingForAdmin",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/booking/admin/bookings",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "booking",
+                "admin",
+                "bookings"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "approveByArtist",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "//  /booking/:bookingId/status\r\n{\r\n \"newStatus\":\"APPROVED\"\r\n}\r\n\r\n// APPROVED, REJECTED, CANCELLED_BY_ARTIST, STARTED, COMPLETED\r\n\r\n\r\n// AND WHEN THE BOOKING IS APPROVED OTP GENERATED AND SEND ON RESPONSE AND WHEN WE HIT API FOR STARTED THEN WE NEED TO GIVE THAT OTP IN REQ.BODY AND WHEN WE STARTED THEN ANOTHER OTP GENERATED FOR COMPLETION AND WHEN CHANGE STATUS COMPLETE THEN WE ALSO PASS THE OTP\r\n// IN THIS CONDITION WE PASSED LIKE THIS \r\n// {\r\n//  \"newStatus\":\"STARTED\",\r\n//  \"otp\":12345\r\n// }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/booking/698c2f3d6143278deb3eb28c/status",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "booking",
+                "698c2f3d6143278deb3eb28c",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CancleBooking",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "//    /booking/:bookingId/cancel",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/booking/698c2f3d6143278deb3eb28c/cancel",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "booking",
+                "698c2f3d6143278deb3eb28c",
+                "cancel"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "InitiatePayment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "//{{baseURL}}/booking/payments/initiate/:bookingId",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/booking/payments/initiate/698c2f3d6143278deb3eb28c",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "booking",
+                "payments",
+                "initiate",
+                "698c2f3d6143278deb3eb28c"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "VerifyPayment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "//{{baseURL}}/booking/payments/verify/:bookingId\r\n{\r\n  \"razorpay_order_id\": \"order_SEl0z1G3RgWcg9\",\r\n  \"razorpay_payment_id\": \"pay_Nx9.....\",\r\n  \"razorpay_signature\": \"....\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/booking/payments/verify/698c2f3d6143278deb3eb28c",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "booking",
+                "payments",
+                "verify",
+                "698c2f3d6143278deb3eb28c"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "StartServiceByArtist",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "\r\n\r\n// AND WHEN THE BOOKING IS APPROVED OTP GENERATED AND SEND ON RESPONSE AND WHEN WE HIT API FOR STARTED THEN WE NEED TO GIVE THAT OTP IN REQ.BODY AND WHEN WE STARTED THEN ANOTHER OTP GENERATED FOR COMPLETION AND WHEN CHANGE STATUS COMPLETE THEN WE ALSO PASS THE OTP\r\n// IN THIS CONDITION WE PASSED LIKE THIS \r\n{\r\n \"otp\":12345\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}}/booking/698c2f3d6143278deb3eb28c/start",
+              "host": [
+                "{{baseURL}}}"
+              ],
+              "path": [
+                "booking",
+                "698c2f3d6143278deb3eb28c",
+                "start"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CompleteByArtist",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "\r\n\r\n// AND WHEN THE BOOKING IS APPROVED OTP GENERATED AND SEND ON RESPONSE AND WHEN WE HIT API FOR STARTED THEN WE NEED TO GIVE THAT OTP IN REQ.BODY AND WHEN WE STARTED THEN ANOTHER OTP GENERATED FOR COMPLETION AND WHEN CHANGE STATUS COMPLETE THEN WE ALSO PASS THE OTP\r\n// IN THIS CONDITION WE PASSED LIKE THIS \r\n{\r\n \"otp\":12345\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/booking/698c2f3d6143278deb3eb28c/complete",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "booking",
+                "698c2f3d6143278deb3eb28c",
+                "complete"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "RejectByArtist",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/booking/698c2f3d6143278deb3eb28c/reject",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "booking",
+                "698c2f3d6143278deb3eb28c",
+                "reject"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CancleByArtist",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/booking/698c2f3d6143278deb3eb28c/cancel-by-artist",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "booking",
+                "698c2f3d6143278deb3eb28c",
+                "cancel-by-artist"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetbookingforartistAndUser",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/booking/admin/bookings",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "booking",
+                "admin",
+                "bookings"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin Wallet",
+      "item": [
+        {
+          "name": "Get All Wallets",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Adjust Points",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"points\": 500,\r\n  \"description\": \"Manual bonus for promotion\",\r\n  \"type\": \"ADD\"\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/reward/admin/wallets/6992f25745996f5e4ba0507a/adjust-points",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "reward",
+                "admin",
+                "wallets",
+                "6992f25745996f5e4ba0507a",
+                "adjust-points"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Freeze Wallet",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"freeze\": false  // true, false\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/reward/admin/wallets/6992f25745996f5e4ba0507a/freeze",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "reward",
+                "admin",
+                "wallets",
+                "6992f25745996f5e4ba0507a",
+                "freeze"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin Withdrawal",
+      "item": [
+        {
+          "name": "Get All Withdrawals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/reward/admin/withdrawals?page=1&limit=10",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "reward",
+                "admin",
+                "withdrawals"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Withdrawal By ID",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Approve Withdrawal",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"paymentConfirmationId\": \"TXN123456\"\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/reward/admin/withdrawals/6993273d9eb1304d87cf8ee5/approve",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "reward",
+                "admin",
+                "withdrawals",
+                "6993273d9eb1304d87cf8ee5",
+                "approve"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Withdrawal",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"rejectionReason\": \"Invalid bank details\"\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/reward/admin/withdrawals/6993273d9eb1304d87cf8ee5/reject",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "reward",
+                "admin",
+                "withdrawals",
+                "6993273d9eb1304d87cf8ee5",
+                "reject"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin Reward Config",
+      "item": [
+        {
+          "name": "Get Active Config",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Create Config",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"pointsPerReferral\": 1000,\r\n  \"pointsPerBooking\": 100,\r\n  \"pointsPerReview\": 50,\r\n  \"conversionRatePoints\": 100,\r\n  \"conversionRateAmount\": 10,\r\n  \"minimumRedeemPoints\": 500,\r\n  \"isActive\": true\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/reward/admin/reward-config/6992f67f3ead5d6800f01c4f",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "reward",
+                "admin",
+                "reward-config",
+                "6992f67f3ead5d6800f01c4f"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Config",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin Referral",
+      "item": [
+        {
+          "name": "Get All Referrals",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Update Referral Status",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"status\": \"REJECTED\",\r\n  \"reason\": \"Fake account detected\"\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/reward/admin/referrals/6992f25845996f5e4ba0507e/status",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "reward",
+                "admin",
+                "referrals",
+                "6992f25845996f5e4ba0507e",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User Wallet",
+      "item": [
+        {
+          "name": "Get Wallet",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Get Wallet Ledger",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "Redeem Points",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"pointsToRedeem\": 1000,\r\n  \"bankDetails\": {\r\n    \"accountHolderName\": \"Krishna Sharma\",\r\n    \"accountNumber\": \"1234567890\",\r\n    \"ifscCode\": \"SBIN0001234\",\r\n    \"bankName\": \"State Bank of India\"\r\n  }\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/reward/user/wallet/redeem",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "reward",
+                "user",
+                "wallet",
+                "redeem"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Withdrawals",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "My Referrals",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "//    /booking/:bookingId/cancel"
+            },
+            "url": {
+              "raw": "{{baseURL}}/reward/user/referrals/my-referred?page=1&limit=10",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "reward",
+                "user",
+                "referrals",
+                "my-referred"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Frontend",
+      "item": [
+        {
+          "name": "AllCategory",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/categories",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Fetch services on the basis of Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/services?categoryId=698f1be2b8fd8dcd14a31024",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "services"
+              ],
+              "query": [
+                {
+                  "key": "categoryId",
+                  "value": "698f1be2b8fd8dcd14a31024"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Fetching Service Providers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/service-providers?categoryId=698f1be2b8fd8dcd14a31024",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers"
+              ],
+              "query": [
+                {
+                  "key": "categoryId",
+                  "value": "698f1be2b8fd8dcd14a31024"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GteProfileUser",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@gmail.com\",\r\n  \"bio\": \"Certified makeup artist with 5 years experience.\",\r\n  \"experience\": \"5 Years\",\r\n  \"gender\": \"Female\",\r\n  \"interest\": [\"Female\", \"Others\"],\r\n  \"languagesSpoken\": [\"English\", \"Hindi\", \"Punjabi\"],\r\n  \"experienceLevel\": \"Expert\",\r\n  \"specialization\": [\"Bridal\", \"Party Makeup\"]\r\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/auth/me",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@email.com\",\r\n  \"mobile\": \"8084877868\",\r\n  \"gender\": \"Male\",\r\n  \"dob\": \"1995-08-15T00:00:00.000Z\",\r\n  \"addresses\": [\r\n    {\r\n      \"street\": \"Sector 16 C\",\r\n      \"city\": \"Dwarka\",\r\n      \"state\": \"New Delhi\",\r\n      \"pincode\": \"110078\",\r\n      \"latitude\": 28.59,\r\n      \"longitude\": 77.03,\r\n      \"isDefault\": true\r\n    }\r\n  ]\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/auth/me",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Fetching all services on the basis of Service Provider",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/services?service-providers=698478333b084291a4750c27",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "services"
+              ],
+              "query": [
+                {
+                  "key": "service-providers",
+                  "value": "698478333b084291a4750c27"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Best Artist Near me",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@email.com\",\r\n  \"mobile\": \"8084877868\",\r\n  \"gender\": \"Male\",\r\n  \"dob\": \"1995-08-15T00:00:00.000Z\",\r\n  \"addresses\": [\r\n    {\r\n      \"street\": \"Sector 16 C\",\r\n      \"city\": \"Dwarka\",\r\n      \"state\": \"New Delhi\",\r\n      \"pincode\": \"110078\",\r\n      \"latitude\": 28.59,\r\n      \"longitude\": 77.03,\r\n      \"isDefault\": true\r\n    }\r\n  ]\r\n}\r\n"
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-providers?lat={lat}&lng={lng}&sort=distance",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers"
+              ],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "{lat}"
+                },
+                {
+                  "key": "lng",
+                  "value": "{lng}"
+                },
+                {
+                  "key": "sort",
+                  "value": "distance"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "MostBooked",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@email.com\",\r\n  \"mobile\": \"8084877868\",\r\n  \"gender\": \"Male\",\r\n  \"dob\": \"1995-08-15T00:00:00.000Z\",\r\n  \"addresses\": [\r\n    {\r\n      \"street\": \"Sector 16 C\",\r\n      \"city\": \"Dwarka\",\r\n      \"state\": \"New Delhi\",\r\n      \"pincode\": \"110078\",\r\n      \"latitude\": 28.59,\r\n      \"longitude\": 77.03,\r\n      \"isDefault\": true\r\n    }\r\n  ]\r\n}\r\n"
+            },
+            "url": {
+              "raw": "{{baseURL}}/services?lat={lat}&lng={lng}&sort=most_booked",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "services"
+              ],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "{lat}"
+                },
+                {
+                  "key": "lng",
+                  "value": "{lng}"
+                },
+                {
+                  "key": "sort",
+                  "value": "most_booked"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "TopArtist",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@email.com\",\r\n  \"mobile\": \"8084877868\",\r\n  \"gender\": \"Male\",\r\n  \"dob\": \"1995-08-15T00:00:00.000Z\",\r\n  \"addresses\": [\r\n    {\r\n      \"street\": \"Sector 16 C\",\r\n      \"city\": \"Dwarka\",\r\n      \"state\": \"New Delhi\",\r\n      \"pincode\": \"110078\",\r\n      \"latitude\": 28.59,\r\n      \"longitude\": 77.03,\r\n      \"isDefault\": true\r\n    }\r\n  ]\r\n}\r\n"
+            },
+            "url": {
+              "raw": "{{baseURL}}/service-providers?lat={lat}&lng={lng}&sort=rating",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "service-providers"
+              ],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "{lat}"
+                },
+                {
+                  "key": "lng",
+                  "value": "{lng}"
+                },
+                {
+                  "key": "sort",
+                  "value": "rating"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Home saloon target services",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@email.com\",\r\n  \"mobile\": \"8084877868\",\r\n  \"gender\": \"Male\",\r\n  \"dob\": \"1995-08-15T00:00:00.000Z\",\r\n  \"addresses\": [\r\n    {\r\n      \"street\": \"Sector 16 C\",\r\n      \"city\": \"Dwarka\",\r\n      \"state\": \"New Delhi\",\r\n      \"pincode\": \"110078\",\r\n      \"latitude\": 28.59,\r\n      \"longitude\": 77.03,\r\n      \"isDefault\": true\r\n    }\r\n  ]\r\n}\r\n"
+            },
+            "url": {
+              "raw": "{{baseURL}}/services?gender=Female",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "services"
+              ],
+              "query": [
+                {
+                  "key": "gender",
+                  "value": "Female"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Trending Near me",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"name\": \"Anuraj Kumar\",\r\n  \"email\": \"anuraj2@email.com\",\r\n  \"mobile\": \"8084877868\",\r\n  \"gender\": \"Male\",\r\n  \"dob\": \"1995-08-15T00:00:00.000Z\",\r\n  \"addresses\": [\r\n    {\r\n      \"street\": \"Sector 16 C\",\r\n      \"city\": \"Dwarka\",\r\n      \"state\": \"New Delhi\",\r\n      \"pincode\": \"110078\",\r\n      \"latitude\": 28.59,\r\n      \"longitude\": 77.03,\r\n      \"isDefault\": true\r\n    }\r\n  ]\r\n}\r\n"
+            },
+            "url": {
+              "raw": "{{baseURL}}/services?lat={lat}&lng={lng}&sort=trending",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "services"
+              ],
+              "query": [
+                {
+                  "key": "lat",
+                  "value": "{lat}"
+                },
+                {
+                  "key": "lng",
+                  "value": "{lng}"
+                },
+                {
+                  "key": "sort",
+                  "value": "trending"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "LandingImages",
+      "item": [
+        {
+          "name": "UploadImage",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "uuid": "d2fb61aa-c3f3-4624-9aaf-ac1ecbb3b52c",
+                  "src": "postman-cloud:///1f10cd82-5f4d-4e70-ad95-36ab28a8cff5"
+                },
+                {
+                  "key": "portal",
+                  "value": "USER",
+                  "type": "text",
+                  "uuid": "878b8f46-3d17-41c2-9450-d0f9835fd87b"
+                },
+                {
+                  "key": "isActive",
+                  "value": "true",
+                  "type": "text",
+                  "uuid": "18a17816-e8e2-4e90-99fa-7b05d8fc9c0e"
+                },
+                {
+                  "key": "order",
+                  "value": "1",
+                  "type": "text",
+                  "uuid": "d6d84fc6-afd1-4cad-ab95-cf4749594537"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseURL}}/landing-images",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "landing-images"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetAllLandingImages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/landing-images?page=1&limit=10",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "landing-images"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DeleteLandingImage",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/landing-images/6995d606e29f76115d0b2208",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "landing-images",
+                "6995d606e29f76115d0b2208"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "UpdateImage",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "uuid": "15cb004c-8ebb-41e0-9a30-b828f5a33612",
+                  "src": "postman-cloud:///1f10cd82-5f4d-4e70-ad95-36ab28a8cff5"
+                },
+                {
+                  "key": "portal",
+                  "value": "USER",
+                  "type": "text",
+                  "uuid": "ebc58627-d0b3-4102-9f4e-e9993e809b4d"
+                },
+                {
+                  "key": "isActive",
+                  "value": "true",
+                  "type": "text",
+                  "uuid": "cce60349-261e-4b98-9f72-e3ecb1a1e82e"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseURL}}/landing-images/6995dbbdcf612c166529ee66",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "landing-images",
+                "6995dbbdcf612c166529ee66"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetImagesForPortal",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/landing-images/portal?portal=USER&page=1&limit=10",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "landing-images",
+                "portal"
+              ],
+              "query": [
+                {
+                  "key": "portal",
+                  "value": "USER"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ToggleStatus",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/landing-images/6995df10054131fed1ec27c1/toggle-status",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "landing-images",
+                "6995df10054131fed1ec27c1",
+                "toggle-status"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Rating&Review",
+      "item": [
+        {
+          "name": "GetAllForProvider",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/reviews/provider/698478333b084291a4750c27",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "reviews",
+                "provider",
+                "698478333b084291a4750c27"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetAllForService",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/reviews/service/6986fd295f397a0c0e753d26",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "reviews",
+                "service",
+                "6986fd295f397a0c0e753d26"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"rating\": 5,\r\n  \"comment\": \"Amazing service! Very professional and clean work.\",\r\n  \"providerId\": \"698478333b084291a4750c27\",\r\n  \"serviceId\": \"6986fd295f397a0c0e753d26\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/reviews",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "reviews"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "delete",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"serviceProviderId\": \"698478333b084291a4750c27\",\r\n  \"serviceId\": \"6984b37e79cead798ace59e5\",\r\n  \"bookingDate\": \"2026-02-10\",\r\n  \"startTime\": \"18:00\",\r\n  \"endTime\": \"14:30\"\r\n}\r\n"
+            },
+            "url": {
+              "raw": "{{baseURL}}/reviews/699a97ecd95030c2ff37b75e",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "reviews",
+                "699a97ecd95030c2ff37b75e"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          "// 1. Get the JSON response\r",
+          "var jsonData = pm.response.json();\r",
+          "\r",
+          "// 2. Check if the token exists inside the 'data' object\r",
+          "if (jsonData.data && jsonData.data.token) {\r",
+          "    \r",
+          "    // 3. Save the token into the Collection Variable\r",
+          "    pm.collectionVariables.set(\"authToken\", jsonData.data.token);\r",
+          "    \r",
+          "    console.log(\"Token saved successfully!\");\r",
+          "} else {\r",
+          "    console.log(\"Token not found. Check the JSON structure again.\");\r",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "authToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTY5Y2M3MTQyNzA5YTRlNTZiMThhZmIiLCJyb2xlIjoiQVJUSVNUIiwiaWF0IjoxNzY4ODM5OTg0LCJleHAiOjE3Njk0NDQ3ODR9.eQsEnXcXzI6wnwYr9AhG_Er_mdLNNnVziT4UaYXVINo"
+    },
+    {
+      "key": "baseURL",
+      "value": "http://localhost:5000/api/v1"
+    }
+  ]
+}

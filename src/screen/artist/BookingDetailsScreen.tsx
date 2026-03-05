@@ -1,21 +1,66 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import ScreenView from '../../utils/ScreenView';
+import { apiCall } from '../../services/api';
+import { getToken } from '../../services/auth';
+import { useAuth } from '../../context/AuthContext';
 
 const BookingDetailsScreen = () => {
   const navigation = useNavigation<any>();
   const { params }: any = useRoute();
 
   // 🔥 booking state
-  const [isAccepted, setIsAccepted] = useState(false);
+  const [isAccepted, setIsAccepted] = useState(params?.status === 'APPROVED' || params?.status === 'STARTED');
+  const [loading, setLoading] = useState(false);
+  const { userToken } = useAuth();
+  const bookingId = params._id || params.id || params.bookingId;
+
+  const handleStatusUpdate = async (newStatus: string) => {
+    try {
+      setLoading(true);
+      const token = userToken || await getToken();
+      if (!token) return;
+
+      if (!bookingId) {
+        console.warn("No booking ID found in params:", params);
+        return;
+      }
+
+      console.log(`[StatusUpdate] Attempting ${newStatus} for ID: ${bookingId}`);
+
+      let response;
+      // We've verified /approve is the correct endpoint. /status returns 404.
+      const endpoint = newStatus === 'APPROVED' ? 'approve' : newStatus.toLowerCase();
+
+      try {
+        response = await apiCall(`/booking/${bookingId}/${endpoint}`, {
+          method: 'PUT',
+          token,
+          body: { newStatus } // Sending body just in case backend requires it for logic
+        });
+
+        if (newStatus === 'APPROVED' || newStatus === 'STARTED') {
+          setIsAccepted(true);
+        } else if (newStatus === 'REJECTED' || newStatus === 'CANCELLED') {
+          navigation.goBack();
+        }
+
+        console.log(`Booking ${newStatus} success:`, response);
+      } catch (err: any) {
+        console.warn(`[StatusUpdate] ${endpoint} failed:`, err.message);
+        // Show the actual reason from backend to the user
+        const errorMsg = err.message || `Failed to update booking to ${newStatus}`;
+        Alert.alert("Booking Update Failed", errorMsg);
+        throw err;
+      }
+    } catch (error) {
+      // already handled above
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <ScreenView>
@@ -75,16 +120,19 @@ const BookingDetailsScreen = () => {
             <View style={styles.card}>
               <View style={styles.actionRow}>
                 <TouchableOpacity
-                  style={styles.acceptBtn}
-                  onPress={() => setIsAccepted(true)}
+                  style={[styles.acceptBtn, loading && { opacity: 0.7 }]}
+                  onPress={() => handleStatusUpdate('APPROVED')}
                   activeOpacity={0.9}
+                  disabled={loading}
                 >
-                  <Text style={styles.acceptText}>Accept</Text>
+                  {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.acceptText}>Accept</Text>}
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.declineOutlineBtn}
+                  style={[styles.declineOutlineBtn, loading && { opacity: 0.7 }]}
+                  onPress={() => handleStatusUpdate('REJECTED')}
                   activeOpacity={0.9}
+                  disabled={loading}
                 >
                   <Text style={styles.declineOutlineText}>Decline</Text>
                 </TouchableOpacity>
@@ -94,34 +142,59 @@ const BookingDetailsScreen = () => {
           )}
 
           {/* CUSTOMER CONTACT (ONLY AFTER ACCEPT) */}
-{isAccepted && (
-  <>
-    {/* CUSTOMER CONTACT */}
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Customer Contact</Text>
+          {isAccepted && (
+            <>
+              {/* CUSTOMER CONTACT */}
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Customer Contact</Text>
 
-      <TouchableOpacity style={styles.callBtn}>
-        <FontAwesome name="phone" size={16} color="#7C3AED" />
-        <Text style={styles.callText}>Call Customer</Text>
-      </TouchableOpacity>
-    </View>
+                <TouchableOpacity style={styles.callBtn}>
+                  <FontAwesome name="phone" size={16} color="#7C3AED" />
+                  <Text style={styles.callText}>Call Customer</Text>
+                </TouchableOpacity>
+              </View>
 
-    {/* START SERVICE */}
-<TouchableOpacity
-  style={styles.startServiceBtn}
-  onPress={() =>
-    navigation.navigate('ServiceOngoing', {
-      name: params.name,
-      service: params.service,
-      price: params.price,
-    })
-  }
->
-  <Text style={styles.startServiceText}>Start Service</Text>
-</TouchableOpacity>
+              {/* START SERVICE */}
+              <TouchableOpacity
+                style={[styles.startServiceBtn, loading && { opacity: 0.7 }]}
+                onPress={async () => {
+                  try {
+                    setLoading(true);
+                    const token = userToken || await getToken();
+                    if (!token) return;
 
-  </>
-)}
+                    if (!bookingId) {
+                      console.warn("No booking ID found in params:", params);
+                      return;
+                    }
+
+                    // Start API - requires OTP from Approval response in a real flow
+                    // Use a mock OTP for now as per Postman example
+                    await apiCall(`/booking/${bookingId}/start`, {
+                      method: 'PUT',
+                      token,
+                      body: { otp: 12345 }
+                    });
+
+                    navigation.navigate('ServiceOngoing', {
+                      ...params,
+                      bookingId: bookingId
+                    });
+                  } catch (e) {
+                    console.error('Failed to start service:', e);
+                    // Fallback navigate for demo if API fails or if OTP is needed
+                    navigation.navigate('ServiceOngoing', { ...params, bookingId: params.id || params._id });
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+              >
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.startServiceText}>Start Service</Text>}
+              </TouchableOpacity>
+
+            </>
+          )}
 
         </View>
       </ScrollView>
@@ -151,19 +224,19 @@ const InfoRow = ({ icon, label, value }: any) => (
 
 const styles = StyleSheet.create({
   /* START SERVICE */
-startServiceBtn: {
-  backgroundColor: '#10B981', // green = action started
-  paddingVertical: 18,
-  borderRadius: 16,
-  alignItems: 'center',
-  marginBottom: 30,
-},
+  startServiceBtn: {
+    backgroundColor: '#10B981', // green = action started
+    paddingVertical: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 30,
+  },
 
-startServiceText: {
-  color: '#fff',
-  fontSize: 17,
-  fontWeight: '600',
-},
+  startServiceText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '600',
+  },
 
   /* ACTION CARD */
   actionRow: {

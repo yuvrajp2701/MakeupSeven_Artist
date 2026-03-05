@@ -10,18 +10,61 @@ import {
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import ScreenView from '../../utils/ScreenView';
 
-const galleryImages = [
-  require('../../asset/images/artists1.png'),
-  require('../../asset/images/artists1.png'),
-  require('../../asset/images/artists1.png'),
-  require('../../asset/images/artists1.png'),
-  require('../../asset/images/artists1.png'),
-  require('../../asset/images/artists1.png'),
-  require('../../asset/images/artists1.png'),
-  require('../../asset/images/artists1.png'),
-];
+import { apiCall } from '../../services/api';
+import { getToken } from '../../services/auth';
+import { useAuth } from '../../context/AuthContext';
 
 const EditRecentWorksScreen = ({ navigation }: any) => {
+  const { userToken } = useAuth();
+  const [loading, setLoading] = React.useState(false);
+  const [galleryImages, setGalleryImages] = React.useState<any[]>([]);
+
+  const fetchGallery = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const token = userToken || await getToken();
+      if (!token) return;
+
+      const response = await apiCall('/auth/me', { method: 'GET', token });
+      const userObj = response?.user || response;
+      const spObj = userObj?.serviceProvider;
+
+      let imgs = spObj?.portfolioImages || [];
+
+      if (imgs.length === 0) {
+        const spId = spObj?.id || userObj?.serviceProviderId;
+        if (spId) {
+          try {
+            const portfolioData = await apiCall(`/service-providers/portfolio/${spId}`, { method: 'GET', token });
+            imgs = Array.isArray(portfolioData) ? portfolioData : (portfolioData?.images || []);
+          } catch (e) {
+            console.warn('Portfolio fetch error:', e);
+          }
+        }
+      }
+      setGalleryImages(imgs);
+    } catch (e) {
+      console.warn('Failed to fetch gallery:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, [userToken]);
+
+  React.useEffect(() => {
+    fetchGallery();
+  }, [fetchGallery]);
+
+  const renderImageSource = (item: any) => {
+    if (typeof item === 'number') return item;
+    const uri = typeof item === 'string' ? item : (item?.url || item?.uri || item?.image);
+    return { uri };
+  };
+
+  const displayImages = galleryImages.length > 0 ? galleryImages : [
+    require('../../asset/images/artists1.png'),
+    require('../../asset/images/artists1.png'),
+    require('../../asset/images/artists1.png'),
+  ];
   return (
     <ScreenView>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -56,13 +99,13 @@ const EditRecentWorksScreen = ({ navigation }: any) => {
 
           {/* GALLERY */}
           <Text style={styles.galleryTitle}>
-            Your Gallery ({galleryImages.length})
+            Your Gallery ({galleryImages.length > 0 ? galleryImages.length : 'Preview'})
           </Text>
 
           <View style={styles.galleryGrid}>
-            {galleryImages.map((img, index) => (
+            {displayImages.map((img, index) => (
               <View key={index} style={styles.imageWrapper}>
-                <Image source={img} style={styles.galleryImage} />
+                <Image source={renderImageSource(img)} style={styles.galleryImage} />
 
                 {/* delete overlay (optional) */}
                 <TouchableOpacity style={styles.deleteBtn}>

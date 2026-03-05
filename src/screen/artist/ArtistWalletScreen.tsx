@@ -1,8 +1,11 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, SafeAreaView, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, SafeAreaView, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../../utils/Colors';
+import { apiCall } from '../../services/api';
+import { getToken } from '../../services/auth';
+import { useAuth } from '../../context/AuthContext';
 
 const TRANSACTIONS = [
   {
@@ -53,20 +56,109 @@ const TRANSACTIONS = [
 ];
 
 const ArtistWalletScreen = () => {
+  const { userToken } = useAuth();
   const [modalVisible, setModalVisible] = React.useState(false);
   const [statementModalVisible, setStatementModalVisible] = React.useState(false);
   const [pdfVisible, setPdfVisible] = React.useState(false); // Added for PDF preview
   const [successModalVisible, setSuccessModalVisible] = React.useState(false);
   const [withdrawAmount, setWithdrawAmount] = React.useState('');
 
-  const handleWithdraw = () => {
+  const [loading, setLoading] = React.useState(true);
+  const [wallet, setWallet] = React.useState<any>(null);
+  const [transactions, setTransactions] = React.useState<any[]>([]);
+
+  const fetchWalletData = async () => {
+    try {
+      setLoading(true);
+      const token = userToken || await getToken();
+      if (!token) return;
+
+      // 1. Fetch Wallet
+      try {
+        const walletData = await apiCall('/reward/user/wallet', { method: 'GET', token });
+        if (walletData && typeof walletData === 'object') {
+          setWallet(walletData);
+        }
+      } catch (e) {
+        console.log('Wallet balance fetch failed:', e);
+      }
+
+      // 2. Fetch Ledger (Transactions)
+      try {
+        const ledgerData = await apiCall('/reward/user/wallet/ledger', { method: 'GET', token });
+        const list = Array.isArray(ledgerData) ? ledgerData : (ledgerData?.ledger || ledgerData?.data || []);
+
+        const mapped = list.map((item: any) => ({
+          id: item.id || item._id,
+          title: item.title || (item.type === 'credit' ? 'Earnings' : 'Withdrawal'),
+          name: item.description || '',
+          date: new Date(item.createdAt).toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+          amount: (item.type === 'credit' ? '+₹' : '-₹') + (item.points || item.amount || 0),
+          status: item.status || 'Completed',
+          type: item.type === 'credit' ? 'incoming' : 'outgoing'
+        }));
+        setTransactions(mapped);
+      } catch (e) {
+        console.log('Wallet ledger fetch failed:', e);
+      }
+    } catch (e) {
+      console.warn('Wallet fetch error:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchWalletData();
+  }, [userToken]);
+
+  const [isWithdrawing, setIsWithdrawing] = React.useState(false);
+
+  const [bankDetails, setBankDetails] = React.useState({
+    accountHolderName: '',
+    accountNumber: '',
+    ifscCode: '',
+    bankName: ''
+  });
+
+  const handleWithdraw = async () => {
     const amount = parseFloat(withdrawAmount);
     if (!amount || amount < 500) {
       Alert.alert('Invalid Amount', 'Minimum withdrawal amount is ₹500.');
       return;
     }
-    // Here you would add the actual withdraw logic
-    setSuccessModalVisible(true);
+
+    if (!bankDetails.accountHolderName || !bankDetails.accountNumber || !bankDetails.ifscCode || !bankDetails.bankName) {
+      Alert.alert('Missing Info', 'Please fill all bank details to continue.');
+      return;
+    }
+
+    try {
+      setIsWithdrawing(true);
+      const token = userToken || await getToken();
+      if (!token) {
+        Alert.alert('Error', 'Authentication required. Please login again.');
+        return;
+      }
+
+      const response = await apiCall('/reward/user/wallet/redeem', {
+        method: 'POST',
+        token,
+        body: {
+          pointsToRedeem: amount,
+          bankDetails
+        }
+      });
+
+      console.log('Withdrawal response:', response);
+      setSuccessModalVisible(true);
+      fetchWalletData(); // Refresh wallet data
+    } catch (error: any) {
+      console.error('Withdrawal failed:', error);
+      Alert.alert('Withdrawal Failed', error.message || 'Something went wrong. Please try again later.');
+    } finally {
+      setIsWithdrawing(false);
+    }
   };
 
   const closeAllModals = () => {
@@ -98,7 +190,7 @@ const ArtistWalletScreen = () => {
               <Text style={styles.cardLabel}>Available Balance</Text>
               <View style={styles.amountContainer}>
                 <Text style={styles.amountSymbol}>₹</Text>
-                <Text style={styles.amountText}>3,240</Text>
+                <Text style={styles.amountText}>{wallet?.totalPoints || wallet?.balance || '0'}</Text>
                 <Text style={styles.amountDecimal}>.00</Text>
               </View>
             </View>
@@ -123,18 +215,18 @@ const ArtistWalletScreen = () => {
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Total Earned</Text>
-            <Text style={styles.statValue}>₹8,430</Text>
-            <Text style={styles.statGrowth}>↗ +12.5%</Text>
+            <Text style={styles.statValue}>₹{wallet?.totalEarnedPoints || wallet?.totalPoints || '0'}</Text>
+            <Text style={styles.statGrowth}>↗ Recently synced</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>This Month</Text>
-            <Text style={styles.statValue}>₹3,240</Text>
-            <Text style={styles.statGrowth}>↗ +8.3%</Text>
+            <Text style={styles.statValue}>₹{wallet?.pointsThisMonth || '0'}</Text>
+            <Text style={styles.statGrowth}>↗ Active</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Pending</Text>
-            <Text style={styles.statValue}>₹799</Text>
-            <Text style={styles.statNote}>1 payment</Text>
+            <Text style={styles.statValue}>₹{wallet?.pendingPoints || '0'}</Text>
+            <Text style={styles.statNote}>0 payments</Text>
           </View>
         </View>
 
@@ -142,53 +234,59 @@ const ArtistWalletScreen = () => {
         <Text style={styles.sectionTitle}>Transaction History</Text>
 
         <View style={styles.transactionsList}>
-          {TRANSACTIONS.map((item) => (
-            <View key={item.id} style={styles.transactionCard}>
-              <View style={[
-                styles.transactionIconContainer,
-                { backgroundColor: item.type === 'incoming' ? '#E8F5E9' : '#FFEBEE' }
-              ]}>
-                <Icon
-                  name={item.type === 'incoming' ? 'south-west' : 'north-east'}
-                  size={20}
-                  color={item.type === 'incoming' ? '#2E7D32' : '#C62828'}
-                />
-              </View>
-
-              <View style={styles.transactionDetails}>
-                <View style={styles.transactionRow}>
-                  <Text style={styles.transactionTitle}>{item.title}</Text>
-                  <Text style={[
-                    styles.transactionAmount,
-                    { color: item.type === 'incoming' ? '#2E7D32' : '#C62828' }
-                  ]}>
-                    {item.amount}
-                  </Text>
-                </View>
-
-                <Text style={styles.transactionName}>{item.name}</Text>
-                <Text style={styles.transactionDate}>{item.date}</Text>
-
+          {transactions.length > 0 ? (
+            transactions.map((item) => (
+              <View key={item.id} style={styles.transactionCard}>
                 <View style={[
-                  styles.statusBadge,
-                  { backgroundColor: item.status === 'Completed' ? '#E8F5E9' : '#FFF3E0' }
+                  styles.transactionIconContainer,
+                  { backgroundColor: item.type === 'incoming' ? '#E8F5E9' : '#FFEBEE' }
                 ]}>
-                  {item.status === 'Completed' && (
-                    <Icon name="check-circle" size={12} color="#2E7D32" style={{ marginRight: 4 }} />
-                  )}
-                  {item.status === 'Processing' && (
-                    <Icon name="access-time" size={12} color="#EF6C00" style={{ marginRight: 4 }} />
-                  )}
-                  <Text style={[
-                    styles.statusText,
-                    { color: item.status === 'Completed' ? '#2E7D32' : '#EF6C00' }
+                  <Icon
+                    name={item.type === 'incoming' ? 'south-west' : 'north-east'}
+                    size={20}
+                    color={item.type === 'incoming' ? '#2E7D32' : '#C62828'}
+                  />
+                </View>
+
+                <View style={styles.transactionDetails}>
+                  <View style={styles.transactionRow}>
+                    <Text style={styles.transactionTitle}>{item.title}</Text>
+                    <Text style={[
+                      styles.transactionAmount,
+                      { color: item.type === 'incoming' ? '#2E7D32' : '#C62828' }
+                    ]}>
+                      {item.amount}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.transactionName}>{item.name}</Text>
+                  <Text style={styles.transactionDate}>{item.date}</Text>
+
+                  <View style={[
+                    styles.statusBadge,
+                    { backgroundColor: item.status === 'Completed' ? '#E8F5E9' : '#FFF3E0' }
                   ]}>
-                    {item.status}
-                  </Text>
+                    {item.status === 'Completed' && (
+                      <Icon name="check-circle" size={12} color="#2E7D32" style={{ marginRight: 4 }} />
+                    )}
+                    {item.status === 'Processing' && (
+                      <Icon name="access-time" size={12} color="#EF6C00" style={{ marginRight: 4 }} />
+                    )}
+                    <Text style={[
+                      styles.statusText,
+                      { color: item.status === 'Completed' ? '#2E7D32' : '#EF6C00' }
+                    ]}>
+                      {item.status}
+                    </Text>
+                  </View>
                 </View>
               </View>
+            ))
+          ) : (
+            <View style={{ padding: 40, alignItems: 'center' }}>
+              <Text style={{ color: '#999' }}>No transactions found</Text>
             </View>
-          ))}
+          )}
         </View>
 
       </ScrollView>
@@ -214,7 +312,7 @@ const ArtistWalletScreen = () => {
             </View>
 
             <Text style={styles.balanceLabel}>
-              Available Balance: <Text style={styles.balanceHighlight}>₹3,240</Text>
+              Available Balance: <Text style={styles.balanceHighlight}>₹{wallet?.totalPoints || wallet?.balance || '0'}</Text>
             </Text>
 
             <Text style={styles.inputLabel}>Amount to Withdraw</Text>
@@ -248,11 +346,15 @@ const ArtistWalletScreen = () => {
             </View>
 
             <TouchableOpacity
-              style={[styles.confirmButton, { backgroundColor: withdrawAmount ? '#8855FF' : '#D1D5DB' }]}
+              style={[styles.confirmButton, { backgroundColor: (withdrawAmount && !isWithdrawing) ? '#8855FF' : '#D1D5DB' }]}
               onPress={handleWithdraw}
-              disabled={!withdrawAmount}
+              disabled={!withdrawAmount || isWithdrawing}
             >
-              <Text style={styles.confirmButtonText}>Withdraw</Text>
+              {isWithdrawing ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.confirmButtonText}>Withdraw</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>

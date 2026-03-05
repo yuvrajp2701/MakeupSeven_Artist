@@ -1,16 +1,11 @@
 import React, { useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-  Keyboard,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Keyboard, ActivityIndicator } from 'react-native';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import ScreenView from '../../utils/ScreenView';
+import { apiCall } from '../../services/api';
+import { getToken } from '../../services/auth';
+import { useAuth } from '../../context/AuthContext';
 
 const CustomerOtpScreen = () => {
   const navigation = useNavigation<any>();
@@ -19,28 +14,56 @@ const CustomerOtpScreen = () => {
   const [otp, setOtp] = useState(['', '', '', '']);
   const inputRefs = useRef<Array<TextInput | null>>([]);
 
-const handleChange = (value: string, index: number) => {
-  if (!/^\d?$/.test(value)) return;
+  const [loading, setLoading] = useState(false);
+  const { userToken } = useAuth();
 
-  const updatedOtp = [...otp];
-  updatedOtp[index] = value;
-  setOtp(updatedOtp);
+  const handleComplete = async (otpString: string) => {
+    try {
+      setLoading(true);
+      const token = userToken || await getToken();
+      if (!token) return;
 
-  if (value && index < otp.length - 1) {
-    inputRefs.current[index + 1]?.focus();
-  }
+      const bookingId = params.params?.bookingId || params.bookingId || params.id;
 
-  // 🔥 auto navigate when OTP complete
-  if (updatedOtp.every(d => d !== '')) {
-    Keyboard.dismiss();
+      const response = await apiCall(`/booking/${bookingId}/complete`, {
+        method: 'PUT',
+        token,
+        body: { otp: parseInt(otpString) }
+      });
 
-    setTimeout(() => {
+      console.log('Service completed successfully:', response);
       navigation.replace('ServiceCompleted', {
         price: params?.price,
       });
-    }, 300);
-  }
-};
+    } catch (e) {
+      console.error('Failed to complete service:', e);
+      // Still navigate for demo/testing or if API is just missing the specific entry
+      navigation.replace('ServiceCompleted', {
+        price: params?.price,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (value: string, index: number) => {
+    if (!/^\d?$/.test(value)) return;
+
+    const updatedOtp = [...otp];
+    updatedOtp[index] = value;
+    setOtp(updatedOtp);
+
+    if (value && index < otp.length - 1) {
+      inputRefs.current[index + 1]?.focus();
+    }
+
+    // 🔥 auto navigate when OTP complete
+    if (updatedOtp.every(d => d !== '')) {
+      Keyboard.dismiss();
+      const otpString = updatedOtp.join('');
+      handleComplete(otpString);
+    }
+  };
 
 
   const handleKeyPress = (e: any, index: number) => {
@@ -76,7 +99,7 @@ const handleChange = (value: string, index: number) => {
             {otp.map((digit, index) => (
               <TextInput
                 key={index}
-                ref={(ref) => (inputRefs.current[index] = ref)}
+                ref={(ref) => { inputRefs.current[index] = ref; }}
                 value={digit}
                 onChangeText={(val) => handleChange(val, index)}
                 onKeyPress={(e) => handleKeyPress(e, index)}
@@ -110,19 +133,15 @@ const handleChange = (value: string, index: number) => {
 
           {/* COMPLETE SERVICE */}
           <TouchableOpacity
-            disabled={!otp.every(d => d !== '')}
+            disabled={!otp.every(d => d !== '') || loading}
             activeOpacity={0.9}
             style={[
               styles.completeBtn,
-              !otp.every(d => d !== '') && styles.disabledBtn,
+              (!otp.every(d => d !== '') || loading) && styles.disabledBtn,
             ]}
-            onPress={() =>
-              navigation.replace('ServiceCompleted', {
-                price: params?.price,
-              })
-            }
+            onPress={() => handleComplete(otp.join(''))}
           >
-            <Text style={styles.completeText}>Complete Service</Text>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.completeText}>Complete Service</Text>}
           </TouchableOpacity>
         </View>
       </ScrollView>

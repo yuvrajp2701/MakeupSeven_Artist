@@ -10,90 +10,125 @@ import {
   Dimensions,
 } from 'react-native';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
+import { useFocusEffect } from '@react-navigation/native';
 import ScreenView from '../../utils/ScreenView';
+import { apiCall } from '../../services/api';
+import { getToken } from '../../services/auth';
+import { useAuth } from '../../context/AuthContext';
+
 const { width } = Dimensions.get('window');
 const ITEM_MARGIN = 16;
 const CAROUSEL_WIDTH = width - (ITEM_MARGIN * 2);
 
-
-const carouselImages = [
-  require('../../asset/images/artists1.png'),
-  require('../../asset/images/artists2.png'),
-  require('../../asset/images/mask.png'),
-  require('../../asset/images/hero-face.png'),
-];
-
-const works = [
-  require('../../asset/images/artists1.png'),
-  require('../../asset/images/artists2.png'),
-  require('../../asset/images/mask.png'),
-  require('../../asset/images/hero-face.png'),
-];
-const services = [
-  {
-    title: 'Bridal Makeup',
-    duration: '2 hours',
-    price: '₹2,200',
-  },
-  {
-    title: 'Pre-Wedding Shoot',
-    duration: '2 hours',
-    price: '₹2,200',
-  },
-  {
-    title: 'Party Makeup',
-    duration: '2 hours',
-    price: '₹2,200',
-  },
-];
-
-const tabs = ['About', 'Availability', 'Services', 'Reviews'];
-const reviews = [
-  {
-    id: 1,
-    name: 'Ravi',
-    rating: 4,
-    date: 'August 13, 2024',
-    comment:
-      'I loved the service so much! Professional and talented. Highly recommended.',
-    images: [
-      require('../../asset/images/artists1.png'),
-      require('../../asset/images/artists2.png'),
-      require('../../asset/images/mask.png'),
-    ],
-  },
-  {
-    id: 2,
-    name: 'Priya',
-    rating: 5,
-    date: 'August 10, 2024',
-    comment:
-      'Amazing work! Made me look absolutely stunning. The makeup lasted all day.',
-    images: [],
-  },
-];
+const TABS = ['About', 'Availability', 'Services', 'Reviews'];
 
 const ArtistPortfolioScreen = ({ navigation }: any) => {
+  const { userToken } = useAuth();
   const [activeTab, setActiveTab] = useState('About');
   const [activeIndex, setActiveIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [portfolioImages, setPortfolioImages] = useState<any[]>([]);
+  const [artistServices, setArtistServices] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
+
   const sliderRef = useRef<FlatList>(null);
+
+  const fetchData = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const token = userToken || await getToken();
+      if (!token) {
+        console.warn('[Portfolio] No token found');
+        return;
+      }
+
+      // 1. Fetch Profile
+      const response = await apiCall('/auth/me', { method: 'GET', token });
+      const userObj = response?.user || response;
+      const spObj = userObj?.serviceProvider;
+      setProfile({ ...userObj, ...spObj });
+
+      // 2. Fetch Portfolio
+      if (spObj?.portfolioImages && Array.isArray(spObj.portfolioImages) && spObj.portfolioImages.length > 0) {
+        setPortfolioImages(spObj.portfolioImages);
+      } else {
+        const spId = spObj?.id || userObj?.serviceProviderId;
+        if (spId) {
+          try {
+            const portfolioData = await apiCall(`/service-providers/portfolio/${spId}`, { method: 'GET', token });
+            const imgs = Array.isArray(portfolioData) ? portfolioData : (portfolioData?.images || []);
+            setPortfolioImages(imgs);
+          } catch (e) {
+            console.warn('Portfolio fetch error:', e);
+          }
+        }
+      }
+
+      // 3. Fetch My Services
+      try {
+        const servicesData = await apiCall('/services/my', { method: 'GET', token });
+        const sList = Array.isArray(servicesData) ? servicesData : (servicesData?.services || servicesData?.data || []);
+        setArtistServices(sList);
+      } catch (e) {
+        console.warn('Services fetch error:', e);
+      }
+
+      // 4. Fetch Reviews
+      try {
+        const spId = spObj?.id || userObj?.serviceProviderId;
+        console.log(`[Reviews] Fetching for Provider ID: ${spId}`);
+
+        let reviewsData;
+        try {
+          // Attempt specific provider reviews first as it's verified working
+          if (spId) {
+            reviewsData = await apiCall(`/reviews/provider/${spId}`, { method: 'GET', token });
+          } else {
+            // Fallback to /my if ID is missing (though /my is currently 404)
+            reviewsData = await apiCall('/reviews/my', { method: 'GET', token });
+          }
+        } catch (e) {
+          console.warn('Reviews primary fetch failed, trying fallback /reviews/my:', e);
+          reviewsData = await apiCall('/reviews/my', { method: 'GET', token });
+        }
+
+        const rList = Array.isArray(reviewsData) ? reviewsData : (reviewsData?.reviews || reviewsData?.data || []);
+        setReviews(rList);
+        console.log(`[Reviews] Loaded ${rList.length} reviews`);
+      } catch (e) {
+        console.warn('Final Reviews fetch error:', e);
+      }
+
+    } catch (error) {
+      console.warn('Data fetch error:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [userToken]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchData();
+    }, [fetchData])
+  );
 
   // Auto-scroll effect
   React.useEffect(() => {
+    if (portfolioImages.length <= 1) return;
     const interval = setInterval(() => {
       let nextIndex = activeIndex + 1;
-      if (nextIndex >= carouselImages.length) {
+      if (nextIndex >= (portfolioImages.length > 0 ? portfolioImages.length : 2)) {
         nextIndex = 0;
       }
       setActiveIndex(nextIndex);
       sliderRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-    }, 1000); // 1 second interval
+    }, 3000);
 
     return () => clearInterval(interval);
-  }, [activeIndex]);
+  }, [activeIndex, portfolioImages]);
 
   const onScrollEnd = (e: any) => {
-    // Determine index based on scroll position + small offset for robustness
     const contentOffsetX = e.nativeEvent.contentOffset.x;
     const index = Math.round(contentOffsetX / CAROUSEL_WIDTH);
     setActiveIndex(index);
@@ -105,6 +140,17 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
     index,
   });
 
+  const displayImages = portfolioImages.length > 0 ? portfolioImages : [
+    require('../../asset/images/artists1.png'),
+    require('../../asset/images/artists2.png'),
+  ];
+
+  const renderImageSource = (item: any) => {
+    if (typeof item === 'number') return item;
+    const uri = typeof item === 'string' ? item : (item?.url || item?.uri || item?.image);
+    return { uri };
+  };
+
   return (
     <ScreenView>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -112,7 +158,7 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
 
           {/* HEADER */}
           <View style={styles.header}>
-            <TouchableOpacity style={styles.backBtn}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
               <FontAwesome name="angle-left" size={22} color="#7B4DFF" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Portfolio</Text>
@@ -122,30 +168,32 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
           <View style={styles.carouselWrapper}>
             <FlatList
               ref={sliderRef}
-              data={carouselImages}
+              data={displayImages}
               horizontal
               showsHorizontalScrollIndicator={false}
               keyExtractor={(_, i) => i.toString()}
               onMomentumScrollEnd={onScrollEnd}
               snapToInterval={CAROUSEL_WIDTH}
               decelerationRate="fast"
-              pagingEnabled={false} // Disabled to allow custom snapWidth with margins
+              pagingEnabled={false}
               getItemLayout={getItemLayout}
               contentContainerStyle={{ paddingHorizontal: ITEM_MARGIN }}
               renderItem={({ item }) => (
                 <View style={{ width: CAROUSEL_WIDTH, alignItems: 'center' }}>
-                  {/* Wrapped in a View to enforce width per item */}
-                  <Image source={item} style={styles.carouselImage} />
+                  <Image source={renderImageSource(item)} style={styles.carouselImage} />
                 </View>
               )}
             />
 
-            <TouchableOpacity style={styles.editBtn}>
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={() => navigation.navigate('EditRecentWorks')}
+            >
               <Text style={styles.editText}>Edit</Text>
             </TouchableOpacity>
 
             <View style={styles.dotsRow}>
-              {carouselImages.map((_, i) => (
+              {displayImages.map((_, i) => (
                 <View
                   key={i}
                   style={[
@@ -169,24 +217,22 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
                 <Text style={styles.seeAll}>See all</Text>
                 <FontAwesome name="angle-right" size={16} color="#7B4DFF" />
               </TouchableOpacity>
-
-              <FontAwesome name="angle-right" size={16} color="#7B4DFF" />
             </View>
           </View>
 
           <FlatList
-            data={works}
+            data={displayImages}
             horizontal
             showsHorizontalScrollIndicator={false}
             keyExtractor={(_, i) => i.toString()}
             renderItem={({ item }) => (
-              <Image source={item} style={styles.workImage} />
+              <Image source={renderImageSource(item)} style={styles.workImage} />
             )}
           />
 
           {/* TABS */}
           <View style={styles.tabsRow}>
-            {tabs.map(tab => (
+            {TABS.map(tab => (
               <TouchableOpacity
                 key={tab}
                 onPress={() => setActiveTab(tab)}
@@ -213,32 +259,24 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardTitle}>About</Text>
-                  <Text style={styles.editLink}>Edit</Text>
+                  <TouchableOpacity onPress={() => navigation.navigate('profile')}>
+                    <Text style={styles.editLink}>Edit</Text>
+                  </TouchableOpacity>
                 </View>
                 <Text style={styles.cardText}>
-                  Professional makeup artist with 5+ years of experience in
-                  special events. Passionate about enhancing natural beauty.
+                  {profile?.bio || 'No bio provided. Professional makeup artist passionate about enhancing natural beauty.'}
                 </Text>
               </View>
 
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle}>Certifications</Text>
-                  <Text style={styles.viewAll}>View All</Text>
+                  <Text style={styles.cardTitle}>Details</Text>
                 </View>
 
-                <View style={styles.certRow}>
-                  <View style={styles.certIcon}>
-                    <FontAwesome name="certificate" size={16} color="#7B4DFF" />
-                  </View>
-                  <View>
-                    <Text style={styles.certTitle}>
-                      Advanced Bridal Makeup Techniques
-                    </Text>
-                    <Text style={styles.certSub}>
-                      MakeupSeven Academy
-                    </Text>
-                  </View>
+                <View style={{ gap: 10 }}>
+                  <Text style={styles.certSub}>Experience: {profile?.experience || '5+ Years'}</Text>
+                  <Text style={styles.certSub}>Specialization: {Array.isArray(profile?.specialization) ? profile.specialization.join(', ') : (profile?.specialization || 'Bridal, Party Makeup')}</Text>
+                  <Text style={styles.certSub}>Languages: {Array.isArray(profile?.languagesSpoken) ? profile.languagesSpoken.join(', ') : (profile?.languagesSpoken || 'English, Hindi')}</Text>
                 </View>
               </View>
             </>
@@ -264,58 +302,50 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
           )}
           {activeTab === 'Services' && (
             <>
-              {services.map((item, index) => (
+              {artistServices.length > 0 ? artistServices.map((item, index) => (
                 <View key={index} style={styles.serviceCard}>
-
-                  {/* LEFT CONTENT */}
                   <View>
-                    <Text style={styles.serviceTitle}>{item.title}</Text>
-
+                    <Text style={styles.serviceTitle}>{item.name}</Text>
                     <View style={styles.serviceMeta}>
                       <FontAwesome name="clock-o" size={14} color="#9CA3AF" />
-                      <Text style={styles.serviceDuration}>{item.duration}</Text>
+                      <Text style={styles.serviceDuration}>{item.duration} mins</Text>
                     </View>
-
-                    <Text style={styles.servicePrice}>{item.price}</Text>
+                    <Text style={styles.servicePrice}>₹{item.basePrice}</Text>
                   </View>
-
-                  {/* RIGHT CONTENT */}
                   <View style={styles.serviceRight}>
-                    <TouchableOpacity style={styles.addBtn}>
-                      <Text style={styles.addBtnText}>Add</Text>
+                    <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('EditService', { service: item })}>
+                      <Text style={styles.addBtnText}>Edit</Text>
                     </TouchableOpacity>
-
                     <Text style={styles.basePrice}>Base Price</Text>
                   </View>
-
                 </View>
-              ))}
+              )) : (
+                <View style={styles.card}>
+                  <Text style={{ textAlign: 'center', color: '#6B7280' }}>No services added yet.</Text>
+                </View>
+              )}
 
               <TouchableOpacity
                 style={styles.editServicesBtn}
                 onPress={() => navigation.navigate('EditService')}
               >
-                <Text style={styles.editServicesText}>Edit Services</Text>
+                <Text style={styles.editServicesText}>Add New Service</Text>
               </TouchableOpacity>
 
             </>
           )}
           {activeTab === 'Reviews' && (
             <>
-              {reviews.map(review => (
+              {reviews.length > 0 ? reviews.map(review => (
                 <View key={review.id} style={styles.reviewCard}>
-
-                  {/* Header */}
                   <View style={styles.reviewHeader}>
                     <View style={styles.avatar}>
                       <Text style={styles.avatarText}>
-                        {review.name.charAt(0)}
+                        {review.name?.charAt(0) || 'U'}
                       </Text>
                     </View>
-
                     <View style={{ flex: 1 }}>
                       <Text style={styles.reviewName}>{review.name}</Text>
-
                       <View style={styles.starRow}>
                         {[...Array(5)].map((_, i) => (
                           <FontAwesome
@@ -327,34 +357,23 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
                         ))}
                       </View>
                     </View>
-
                     <Text style={styles.reviewDate}>{review.date}</Text>
                   </View>
-
-                  {/* Comment */}
                   <Text style={styles.reviewText}>{review.comment}</Text>
-
-                  {/* Images */}
-                  {review.images.length > 0 && (
-                    <View style={styles.reviewImagesRow}>
-                      {review.images.map((img, i) => (
-                        <Image key={i} source={img} style={styles.reviewImage} />
-                      ))}
-                    </View>
-                  )}
                 </View>
-              ))}
+              )) : (
+                <View style={styles.card}>
+                  <Text style={{ textAlign: 'center', color: '#6B7280' }}>No reviews yet.</Text>
+                </View>
+              )}
 
-              {/* View All */}
               <TouchableOpacity style={styles.viewAllReviewsBtn} onPress={() => navigation.navigate('AllReviews')}>
                 <Text style={styles.viewAllReviewsText}>
-                  View All Reviews (243)
+                  View All Reviews
                 </Text>
               </TouchableOpacity>
             </>
           )}
-
-
         </View>
       </ScrollView>
     </ScreenView>

@@ -2,90 +2,119 @@ import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   ScrollView,
-  TextInput,
-  Modal,
-  FlatList,
-  Pressable,
-  Dimensions,
-  Image,
-  Switch,
+  Alert,
+  BackHandler,
 } from 'react-native';
-import FontAwesome from '@react-native-vector-icons/fontawesome';
+import { useFocusEffect } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
+import { launchImageLibrary, launchCamera, ImagePickerResponse } from 'react-native-image-picker';
+
 import ScreenView from '../../utils/ScreenView';
-import InputGroup from '../../components/InputGroup';
-import DropdownField from '../../components/DropdownField';
 import FloatingDropdownOverlay from '../../components/FloatingDropdownOverlay';
-import { Slider } from '@miblanchard/react-native-slider';
-import AddProcedureModal from '../../components/AddProcedureModal';
 import VerificationSuccessModal from '../../components/VerificationSuccessModal';
 
-const { width } = Dimensions.get('window');
+import ProfileStepHeader from '../../components/artist/ProfileStepHeader';
+import ProfileInfoStep from '../../components/artist/ProfileInfoStep';
+import PortfolioStep from '../../components/artist/PortfolioStep';
+import ServicesStep from '../../components/artist/ServicesStep';
+
+import { apiCall } from '../../services/api';
+import { getToken } from '../../services/auth';
+import createArtistStyles from '../../components/artist/styles/createArtistStyles';
+
+const styles = createArtistStyles;
 
 const CreateArtistProfileScreen = () => {
   const navigation = useNavigation<any>();
 
-  // Stepper State: 0 = Profile, 1 = Portfolio, 2 = Services
+  // ── Stepper ────────────────────────────────────────────────
   const [step, setStep] = useState<0 | 1 | 2>(0);
 
-  // Form State
+  // ── Personal info ──────────────────────────────────────────
   const [fullName, setFullName] = useState('');
   const [mobile, setMobile] = useState('');
   const [email, setEmail] = useState('');
-
   const [gender, setGender] = useState('');
   const [language, setLanguage] = useState('');
 
+  // ── Location ───────────────────────────────────────────────
   const [city, setCity] = useState('');
   const [area, setArea] = useState('');
   const [pincode, setPincode] = useState('');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [geocoding, setGeocoding] = useState(false);
+  const [mapAddress, setMapAddress] = useState('');
   const [radius, setRadius] = useState<number>(10);
 
+  // ── Professional ───────────────────────────────────────────
   const [category, setCategory] = useState('');
   const [experience, setExperience] = useState('');
   const [specialization, setSpecialization] = useState('');
 
+  // ── KYC ───────────────────────────────────────────────────
+  const [aadhaarNumber, setAadhaarNumber] = useState('');
+  const [aadhaarFront, setAadhaarFront] = useState<any>(null);
+  const [aadhaarBack, setAadhaarBack] = useState<any>(null);
+  const [panNumber, setPanNumber] = useState('');
+  const [panImage, setPanImage] = useState<any>(null);
 
-  // Service State
-  const [serviceCategory, setServiceCategory] = useState('');
-  const [serviceName, setServiceName] = useState('');
-  const [serviceDesc, setServiceDesc] = useState('');
-  const [serviceDuration, setServiceDuration] = useState('');
-  const [servicePrice, setServicePrice] = useState('');
-  const [serviceDiscountPrice, setServiceDiscountPrice] = useState('');
-  const [whoShouldTake, setWhoShouldTake] = useState('');
-  const [whoShouldAvoid, setWhoShouldAvoid] = useState('');
-  const [extraInfoEnabled, setExtraInfoEnabled] = useState(true);
-
-  const [serviceExpanded, setServiceExpanded] = useState(true);
-
-  // Procedure State
-  const [procedureModalVisible, setProcedureModalVisible] = useState(false);
-  const [procedures, setProcedures] = useState([{ title: '', description: '', expanded: true }]);
-  const [proceduresSaved, setProceduresSaved] = useState(false);
-
-  // Service Images State
-  const [servicePrimaryImages, setServicePrimaryImages] = useState([
-    require('../../asset/images/facial.png'),
-  ]);
-  const [serviceOtherImages, setServiceOtherImages] = useState([
-    require('../../asset/images/artists1.png'),
-    require('../../asset/images/artists2.png'),
-  ]);
-
-  // Verification Modal State
+  // ── Modals / UI ────────────────────────────────────────────
   const [verificationModalVisible, setVerificationModalVisible] = useState(false);
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [currentOptions, setCurrentOptions] = useState<string[]>([]);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
-  // Use ref for the callback to avoid closure staleness issues in state
-  // Use ref for the callback to avoid closure staleness issues in state
   const onOptionSelectRef = useRef<(val: string) => void>(() => { });
 
+  // ── Geocode pincode ────────────────────────────────────────
+  const geocodePincode = async (code: string) => {
+    if (code.length !== 6) return;
+    try {
+      setGeocoding(true);
+      const url = `https://nominatim.openstreetmap.org/search?postalcode=${code}&country=India&format=json&limit=1`;
+      const res = await fetch(url, { headers: { 'User-Agent': 'MakeupSevenApp/1.0' } });
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const { lat, lon, display_name } = data[0];
+        setLatitude(parseFloat(lat));
+        setLongitude(parseFloat(lon));
+        setMapAddress(display_name);
+        const parts = display_name.split(', ');
+        if (!city && parts.length > 2) setCity(parts[parts.length - 3] || '');
+        if (!area && parts.length > 1) setArea(parts[0] || '');
+      } else {
+        Alert.alert('Pincode Not Found', 'Could not find location for this pincode. Please drag the map pin manually.');
+      }
+    } catch (e) {
+      console.warn('Geocoding failed:', e);
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
+  // ── Document picker ────────────────────────────────────────
+  const pickDocument = (setter: (v: any) => void) => {
+    Alert.alert('Select Document', 'Choose how you want to upload', [
+      {
+        text: 'Camera',
+        onPress: () => launchCamera({ mediaType: 'photo', quality: 1, saveToPhotos: false }, (res: ImagePickerResponse) => {
+          if (!res.didCancel && res.assets?.[0]) setter(res.assets[0]);
+        }),
+      },
+      {
+        text: 'Gallery',
+        onPress: () => launchImageLibrary({ mediaType: 'photo', quality: 1 }, (res: ImagePickerResponse) => {
+          if (!res.didCancel && res.assets?.[0]) setter(res.assets[0]);
+        }),
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  // ── Dropdown helper ────────────────────────────────────────
   const openDropdown = (
     options: string[],
     setValue: (val: string) => void,
@@ -100,431 +129,169 @@ const CreateArtistProfileScreen = () => {
     setModalVisible(true);
   };
 
-  const progressWidth = step === 0 ? '33%' : step === 1 ? '66%' : '100%';
+  // ── Block hardware back ────────────────────────────────────
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => true;
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [])
+  );
+
+  // ── Pre-fill user data ─────────────────────────────────────
+  React.useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const token = await getToken();
+        if (token) {
+          const response = await apiCall('/auth/me', { token });
+          const user = response?.user || response;
+          if (user) {
+            setFullName(user.name || '');
+            setMobile(user.mobile || '');
+            setEmail(user.email || '');
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to pre-fill user data:', e);
+      }
+    };
+    fetchUserData();
+  }, []);
+
+  // ── Submit profile ─────────────────────────────────────────
+  const submitProfile = async () => {
+    if (!fullName || !mobile) {
+      console.warn('Validation failed: Missing fullName or mobile');
+      return;
+    }
+    const token = await getToken();
+    if (!token) {
+      console.warn('No token found, cannot submit profile');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      let spExists = false;
+      try {
+        const checkRes = await apiCall('/auth/me', { token });
+        spExists = !!(checkRes?.user?.serviceProvider || checkRes?.serviceProvider);
+      } catch (e) {
+        console.log('SP check error (ignoring):', e);
+      }
+
+      const formData = new FormData();
+      formData.append('fullName', fullName);
+      formData.append('mobile', mobile);
+      formData.append('email', email || `artist_${mobile.replace(/[^0-9]/g, '')}@makeupseven.temp`);
+      formData.append('gender', gender || '');
+      formData.append('language', language);
+      formData.append('city', city);
+      formData.append('area', area);
+      formData.append('pincode', pincode);
+      formData.append('radius', String(radius));
+      if (latitude !== null) formData.append('latitude', String(latitude));
+      if (longitude !== null) formData.append('longitude', String(longitude));
+      formData.append('category', category);
+      formData.append('experience', experience);
+      formData.append('specialization', specialization);
+      formData.append('aadhaarNumber', aadhaarNumber);
+      formData.append('panNumber', panNumber);
+      if (aadhaarFront) formData.append('aadhaarFront', { uri: aadhaarFront.uri, type: aadhaarFront.type || 'image/jpeg', name: aadhaarFront.fileName || 'aadhaar_front.jpg' } as any);
+      if (aadhaarBack) formData.append('aadhaarBack', { uri: aadhaarBack.uri, type: aadhaarBack.type || 'image/jpeg', name: aadhaarBack.fileName || 'aadhaar_back.jpg' } as any);
+      if (panImage) formData.append('panCard', { uri: panImage.uri, type: panImage.type || 'image/jpeg', name: panImage.fileName || 'pan_card.jpg' } as any);
+
+      const endpoint = spExists ? '/service-providers/profile' : '/service-providers';
+      const method = spExists ? 'PUT' : 'POST';
+
+      try {
+        await apiCall(endpoint, { method, body: formData, token });
+        if (step === 2 || step === 0) setVerificationModalVisible(true);
+      } catch (error: any) {
+        const fallbackEndpoint = !spExists ? '/service-providers/profile' : '/service-providers';
+        const fallbackMethod = !spExists ? 'PUT' : 'POST';
+        try {
+          await apiCall(fallbackEndpoint, { method: fallbackMethod, body: formData, token });
+          if (step === 2 || step === 0) setVerificationModalVisible(true);
+        } catch (fbError: any) {
+          if (fbError.message?.includes('role USER') || fbError.message?.includes('authorized')) {
+            Alert.alert('Permission Error', 'This account is registered as a Customer. To submit an Artist profile, please register with a new mobile number.');
+          } else {
+            Alert.alert('Submission Failed', fbError.message || 'Something went wrong while saving your profile.');
+          }
+        }
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ── Save / Next button ─────────────────────────────────────
+  const handleSave = () => {
+    if (step === 0) {
+      submitProfile();
+    } else if (step < 2) {
+      setStep((prev) => (prev + 1) as any);
+    } else {
+      submitProfile();
+    }
+  };
 
   return (
     <ScreenView style={styles.screen}>
-      <View style={styles.headerContainer}>
-        {/* HEADER */}
-        <View style={styles.navRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <FontAwesome name="arrow-left" size={25} color="#7C3AED" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Create your artist profile</Text>
-        </View>
-
-        {/* PROGRESS BAR */}
-        <View style={styles.progressBarTrack}>
-          <View style={[styles.progressBarFill, { width: progressWidth }]} />
-        </View>
-
-        {/* STEPPER LABELS (BELOW LINE) */}
-        {/* STEPPER LABELS (BELOW LINE) */}
-        <View style={styles.tabsRow}>
-          <TouchableOpacity style={styles.tabItem} onPress={() => setStep(0)}>
-            <Text style={[styles.tabText, step === 0 && styles.activeTabText, { width: '100%' }]}>
-              Profile
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.tabItem} onPress={() => setStep(1)}>
-            <Text style={[styles.tabText, step === 1 && styles.activeTabText, { width: '100%' }]}>
-              Portfolio
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.tabItem} onPress={() => setStep(2)}>
-            <Text style={[styles.tabText, step === 2 && styles.activeTabText, { width: '100%' }]}>
-              Services
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <ProfileStepHeader step={step} onStepChange={setStep} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-
         {step === 0 && (
-          <>
-            {/* SECTION: Personal Information */}
-            <Text style={styles.sectionHeader}>Personal Information</Text>
-
-            <Text style={styles.fieldLabel}>Upload photo</Text>
-            <TouchableOpacity style={styles.uploadBox} activeOpacity={0.8}>
-              <View style={styles.uploadIconCircle}>
-                <FontAwesome name="upload" size={20} color="#7C3AED" />
-              </View>
-              <Text style={styles.uploadTitle}>Upload Images</Text>
-              <Text style={styles.uploadSubtitle}>PNG, JPG up to 10MB each</Text>
-            </TouchableOpacity>
-
-            <InputGroup
-              label="Full name"
-              placeholder="Enter your full name"
-              value={fullName}
-              onChangeText={setFullName}
-            />
-            <InputGroup
-              label="Mobile number"
-              placeholder="Enter your mobile number"
-              value={mobile}
-              onChangeText={setMobile}
-              keyboardType="phone-pad"
-            />
-            <InputGroup
-              label="Email address"
-              placeholder="your email address"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              icon="envelope-o"
-            />
-
-            <DropdownField
-              label="Gender"
-              value={gender}
-              placeholder="Select gender"
-              onPress={(layout: any) => openDropdown(['Male', 'Female', 'Other'], setGender, layout)}
-            />
-
-            <DropdownField
-              label="Language spoken"
-              value={language}
-              placeholder="Select language"
-              onPress={(layout: any) => openDropdown(['English', 'Hindi', 'Marathi', 'Gujarati'], setLanguage, layout)}
-            />
-
-            {/* SECTION: Location & Services Area */}
-            <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Location & Services Area</Text>
-
-            <DropdownField
-              label="City"
-              value={city}
-              placeholder="Select your city"
-              onPress={(layout: any) => openDropdown(['Mumbai', 'Delhi', 'Bangalore', 'Pune'], setCity, layout)}
-            />
-
-            <InputGroup
-              label="Area / locality"
-              placeholder="Enter your area or locality"
-              value={area}
-              onChangeText={setArea}
-            />
-            <InputGroup
-              label="Pincode"
-              placeholder="Enter pin code"
-              value={pincode}
-              onChangeText={setPincode}
-              keyboardType="numeric"
-            />
-
-            {/* Service Radius */}
-            <Text style={styles.fieldLabel}>Service radius</Text>
-            <Slider
-              value={radius}
-              minimumValue={5}
-              maximumValue={100}
-              step={1}
-              onValueChange={(val) => setRadius(val[0])}
-              minimumTrackTintColor="#7C3AED"
-              maximumTrackTintColor="#F3F4F6"
-              thumbTintColor="#7C3AED"
-              trackStyle={{ height: 10, borderRadius: 5 }}
-              thumbStyle={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#7C3AED' }}
-            />
-            <View style={styles.radiusInfoRow}>
-              <Text style={styles.radiusValueText}>{Math.round(radius)} km</Text>
-              <Text style={styles.radiusHelperText}>Customer within this radius can book your service</Text>
-            </View>
-
-            {/* SECTION: Professional overview */}
-            <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Professional overview</Text>
-
-            <DropdownField
-              label="Select your primary category"
-              value={category}
-              placeholder="Select primary category"
-              onPress={(layout: any) => openDropdown(['Makeup', 'Hair Styling', 'Nail Art', 'Mehendi'], setCategory, layout)}
-            />
-
-            <DropdownField
-              label="Experience"
-              value={experience}
-              placeholder="Select your experience level"
-              onPress={(layout: any) => openDropdown(['Fresher (0-1 y)', 'Mid-level (2-5 y)', 'Senior (5+ y)'], setExperience, layout)}
-            />
-
-            <DropdownField
-              label="Specialization"
-              value={specialization}
-              placeholder="Select specialization"
-              onPress={(layout: any) => openDropdown(['Bridal Makeup', 'Party Makeup', 'Editorial'], setSpecialization, layout)}
-            />
-          </>
+          <ProfileInfoStep
+            fullName={fullName} setFullName={setFullName}
+            mobile={mobile} setMobile={setMobile}
+            email={email} setEmail={setEmail}
+            gender={gender} setGender={setGender}
+            language={language} setLanguage={setLanguage}
+            city={city} setCity={setCity}
+            area={area} setArea={setArea}
+            pincode={pincode} setPincode={setPincode}
+            geocoding={geocoding}
+            latitude={latitude} longitude={longitude}
+            mapAddress={mapAddress}
+            setLatitude={setLatitude} setLongitude={setLongitude}
+            radius={radius} setRadius={setRadius}
+            geocodePincode={geocodePincode}
+            category={category} setCategory={setCategory}
+            experience={experience} setExperience={setExperience}
+            specialization={specialization} setSpecialization={setSpecialization}
+            aadhaarNumber={aadhaarNumber} setAadhaarNumber={setAadhaarNumber}
+            aadhaarFront={aadhaarFront} setAadhaarFront={setAadhaarFront}
+            aadhaarBack={aadhaarBack} setAadhaarBack={setAadhaarBack}
+            panNumber={panNumber} setPanNumber={setPanNumber}
+            panImage={panImage} setPanImage={setPanImage}
+            pickDocument={pickDocument}
+            openDropdown={openDropdown}
+          />
         )}
 
-        {step === 1 && (
-          <View>
-            <Text style={[styles.sectionHeader, { marginBottom: 8 }]}>Portfolio Images & Videos</Text>
-            <Text style={styles.helperText}>Upload clear, well lit photos to get more bookings</Text>
+        {step === 1 && <PortfolioStep />}
 
-            <TouchableOpacity style={styles.uploadBox} activeOpacity={0.8}>
-              <View style={styles.uploadIconCircle}>
-                <FontAwesome name="upload" size={20} color="#7C3AED" />
-              </View>
-              <Text style={styles.uploadTitle}>Upload Images / videos</Text>
-              <Text style={styles.uploadSubtitle}>PNG, JPG up to 50MB each</Text>
-            </TouchableOpacity>
+        {step === 2 && <ServicesStep openDropdown={openDropdown} />}
 
-            <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>Your portfolio images</Text>
-            <View style={styles.imageGrid}>
-              {[
-                require('../../asset/images/facial.png'),
-                require('../../asset/images/artists1.png'),
-                require('../../asset/images/artists2.png'),
-                require('../../asset/images/bestartists1.png'),
-              ].map((img, index) => (
-                <View key={index} style={styles.gridImageWrapper}>
-                  <Image source={img} style={styles.gridImage} resizeMode="cover" />
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {step === 2 && (
-          <View>
-            <View style={styles.addServiceHeader}>
-              <Text style={styles.sectionHeaderNoMargin}>Add service</Text>
-              <TouchableOpacity style={styles.addServiceBtn}>
-                <FontAwesome name="plus" size={16} color="#7C3AED" />
-              </TouchableOpacity>
-            </View>
-
-            {/* SERVICE CARD */}
-            <View style={styles.serviceCard}>
-              <TouchableOpacity
-                style={styles.serviceHeaderRow}
-                onPress={() => setServiceExpanded(!serviceExpanded)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.serviceTitle}>Service 1</Text>
-                <FontAwesome name={serviceExpanded ? "angle-up" : "angle-down"} size={20} color="#6B7280" />
-              </TouchableOpacity>
-
-              {serviceExpanded && (
-                <View style={styles.serviceBody}>
-                  <DropdownField
-                    label="Service Category"
-                    value={serviceCategory}
-                    placeholder="Select category"
-                    onPress={(layout: any) => openDropdown(['Makeup', 'Hair Styling', 'Nail Art', 'Mehendi'], setServiceCategory, layout)}
-                  />
-
-                  <InputGroup
-                    label="Service Name"
-                    placeholder="Bridal Makeup"
-                    value={serviceName}
-                    onChangeText={setServiceName}
-                  />
-
-                  <InputGroup
-                    label="Description"
-                    placeholder="Complete bridal look with trial"
-                    value={serviceDesc}
-                    onChangeText={setServiceDesc}
-                  />
-
-                  <InputGroup
-                    label="Duration"
-                    placeholder="2 hours"
-                    value={serviceDuration}
-                    onChangeText={setServiceDuration}
-                    icon="clock-o"
-                  />
-
-                  <View style={styles.rowInputs}>
-                    <View style={styles.halfInput}>
-                      <InputGroup
-                        label="Normal Price (₹)"
-                        placeholder="2200"
-                        value={servicePrice}
-                        onChangeText={setServicePrice}
-                        keyboardType="numeric"
-                      />
-                    </View>
-                    <View style={styles.halfInput}>
-                      <InputGroup
-                        label="Discount Price (₹)"
-                        placeholder="2200"
-                        value={serviceDiscountPrice}
-                        onChangeText={setServiceDiscountPrice}
-                        keyboardType="numeric"
-                      />
-                    </View>
-                  </View>
-
-                  {/* --- PRIMARY SERVICE IMAGES --- */}
-                  <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 4 }]}>Primary Service Images (Max 3)</Text>
-                  <Text style={[styles.helperText, { marginBottom: 12 }]}>Main wide shots for this service</Text>
-
-                  {servicePrimaryImages.length < 3 && (
-                    <TouchableOpacity style={styles.uploadBox} activeOpacity={0.8}>
-                      <View style={styles.uploadIconCircle}>
-                        <FontAwesome name="upload" size={20} color="#7C3AED" />
-                      </View>
-                      <Text style={styles.uploadTitle}>Upload Primary Image</Text>
-                      <Text style={styles.uploadSubtitle}>16:9 Aspect Ratio</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  <View style={styles.primaryImagesList}>
-                    {servicePrimaryImages.map((img, index) => (
-                      <View key={index} style={styles.primaryImageWrapper}>
-                        <Image source={img} style={styles.primaryImageItem} resizeMode="cover" />
-                        <TouchableOpacity style={styles.removeBtn} onPress={() => {
-                          const newImgs = [...servicePrimaryImages];
-                          newImgs.splice(index, 1);
-                          setServicePrimaryImages(newImgs);
-                        }}>
-                          <FontAwesome name="times" size={14} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-
-                  {/* --- OTHER SERVICE IMAGES --- */}
-                  <Text style={[styles.sectionTitle, { marginTop: 12, marginBottom: 4 }]}>Service Gallery (Max 6)</Text>
-                  <Text style={[styles.helperText, { marginBottom: 12 }]}>Additional details or angles</Text>
-
-                  {serviceOtherImages.length < 6 && (
-                    <TouchableOpacity style={styles.uploadBox} activeOpacity={0.8}>
-                      <View style={styles.uploadIconCircle}>
-                        <FontAwesome name="upload" size={20} color="#7C3AED" />
-                      </View>
-                      <Text style={styles.uploadTitle}>Upload Gallery Image</Text>
-                      <Text style={styles.uploadSubtitle}>Square images</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  <View style={styles.imageGrid}>
-                    {serviceOtherImages.map((img, index) => (
-                      <View key={index} style={styles.gridImageWrapper}>
-                        <Image source={img} style={styles.gridImage} resizeMode="cover" />
-                        <TouchableOpacity style={styles.removeBtnSmall} onPress={() => {
-                          const newImgs = [...serviceOtherImages];
-                          newImgs.splice(index, 1);
-                          setServiceOtherImages(newImgs);
-                        }}>
-                          <FontAwesome name="times" size={12} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-
-                  {/* EXTRA SERVICE INFO */}
-                  <Text style={[styles.sectionTitle, { fontSize: 16, marginTop: 10, marginBottom: 12 }]}>Extra service information</Text>
-
-                  {!proceduresSaved ? (
-                    <TouchableOpacity
-                      style={styles.procedureButton}
-                      onPress={() => setProcedureModalVisible(true)}
-                    >
-                      <Text style={styles.procedureBtnText}>Add procedure</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={styles.procedureSummaryBox}>
-                      <Text style={styles.smallLabel}>Procedures</Text>
-                      {procedures.map((proc, index) => (
-                        <View key={index} style={styles.procedureSummaryItem}>
-                          <Text style={styles.procIndex}>{index + 1}</Text>
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.procTitle}>{proc.title || `Procedure ${index + 1}`}</Text>
-                            <Text style={styles.procDesc}>{proc.description}</Text>
-                          </View>
-                        </View>
-                      ))}
-
-                      <TouchableOpacity style={styles.editProcedureBtn} onPress={() => setProcedureModalVisible(true)}>
-                        <Text style={styles.editProcedureText}>Edit procedure</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-
-                  <View style={styles.extraInfoBox}>
-                    <View style={styles.extraInfoHeader}>
-                      <Text style={styles.extraInfoTitle}>Who Should Take / Avoid This Service</Text>
-                      <Switch
-                        trackColor={{ false: "#D1D5DB", true: "#7C3AED" }}
-                        thumbColor={"#fff"}
-                        ios_backgroundColor="#D1D5DB"
-                        onValueChange={setExtraInfoEnabled}
-                        value={extraInfoEnabled}
-                      />
-                    </View>
-
-                    {extraInfoEnabled && (
-                      <View>
-                        <Text style={styles.smallLabel}>Who should take this service?</Text>
-                        <TextInput
-                          style={styles.textArea}
-                          placeholder="To Increase glow..."
-                          placeholderTextColor="#9CA3AF"
-                          multiline
-                          value={whoShouldTake}
-                          onChangeText={setWhoShouldTake}
-                          textAlignVertical="top"
-                        />
-
-                        <Text style={styles.smallLabel}>Who should avoid this service?</Text>
-                        <TextInput
-                          style={styles.textArea}
-                          placeholder="To Increase glow..."
-                          placeholderTextColor="#9CA3AF"
-                          multiline
-                          value={whoShouldAvoid}
-                          onChangeText={setWhoShouldAvoid}
-                          textAlignVertical="top"
-                        />
-                      </View>
-                    )}
-                  </View>
-
-                </View>
-              )}
-            </View>
-          </View>
-        )}
-
-
-        {/* SAVE BUTTON */}
-        {/* SAVE BUTTON */}
-        <TouchableOpacity
-          style={styles.saveButton}
-          activeOpacity={0.9}
-          onPress={() => {
-            if (step === 0) {
-              // Profile Step - Submit triggers review modal immediately
-              setVerificationModalVisible(true);
-            } else {
-              // Other steps
-              if (step < 2) {
-                setStep((prev) => (prev + 1) as any);
-              } else {
-                setVerificationModalVisible(true);
-              }
-            }
-          }}
-        >
-          <Text style={styles.saveButtonText}>{step === 0 ? 'Submit' : 'Save and continue'}</Text>
+        {/* Save / Continue button */}
+        <TouchableOpacity style={styles.saveButton} activeOpacity={0.9} onPress={handleSave}>
+          <Text style={styles.saveButtonText}>
+            {step === 0 ? 'Submit' : 'Save and continue'}
+          </Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>
 
-
-      {/* FLOATING DROPDOWN OVERLAY */}
+      {/* Floating Dropdown Overlay */}
       <FloatingDropdownOverlay
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
@@ -533,420 +300,16 @@ const CreateArtistProfileScreen = () => {
         onSelect={(val) => onOptionSelectRef.current(val)}
       />
 
-      {/* PROCEDURE MODAL COMPONENT */}
-      <AddProcedureModal
-        visible={procedureModalVisible}
-        onClose={() => setProcedureModalVisible(false)}
-        onSave={(newProcedures) => {
-          setProcedures(newProcedures);
-          setProceduresSaved(true);
-          setProcedureModalVisible(false);
-        }}
-        initialProcedures={procedures}
-      />
-
-      {/* VERIFICATION SUCCESS MODAL COMPONENT */}
+      {/* Verification Success Modal */}
       <VerificationSuccessModal
         visible={verificationModalVisible}
         onClose={() => {
           setVerificationModalVisible(false);
-          navigation.goBack();
+          navigation.reset({ index: 0, routes: [{ name: 'Artist' }] });
         }}
       />
-
     </ScreenView>
   );
 };
-
-/* --- STYLES --- */
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  headerContainer: {
-    paddingTop: 40,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  navRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 20,
-    height: 48,
-  },
-  backButton: {
-    width: 50,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F3ECFF',
-    borderRadius: 15,
-    marginRight: 12,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#7C3AED',
-  },
-  tabsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingBottom: 10,
-  },
-  tabItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  tabText: {
-    width: '33.33%',
-    marginTop: 10,
-    textAlign: 'center',
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  activeTabText: {
-    color: '#111827',
-    fontWeight: '600',
-  },
-  progressBarTrack: {
-    height: 4,
-    backgroundColor: '#E5E7EB',
-    width: '100%',
-    flexDirection: 'row',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#7C3AED',
-    borderTopRightRadius: 4,
-    borderBottomRightRadius: 4,
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  sectionHeader: {
-    fontSize: 20,
-    fontWeight: '500',
-    color: '#111827',
-    marginTop: 20,
-    marginBottom: 30,
-  },
-
-  // Upload Box
-  uploadBox: {
-    borderWidth: 1.5,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 30,
-    marginBottom: 20,
-    backgroundColor: '#F9FAFB',
-  },
-  uploadIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#F3ECFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  uploadTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 10,
-  },
-  uploadSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-
-  fieldLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 18,
-  },
-
-
-  // Button
-  saveButton: {
-    backgroundColor: '#7C3AED',
-    height: 54,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  radiusInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: -8,
-    marginBottom: 20,
-  },
-  radiusValueText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  radiusHelperText: {
-    fontSize: 16,
-    color: '#6B7281',
-    flex: 1,
-    textAlign: 'right',
-  },
-  helperText: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#374151',
-  },
-  imageGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  gridImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-  },
-  gridImageWrapper: {
-    width: (width - 32 - 24) / 3,
-    height: (width - 32 - 24) / 3,
-    marginBottom: 12,
-    position: 'relative',
-  },
-  subSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  subSectionHelper: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 16,
-  },
-  primaryImagesList: {
-    marginBottom: 10,
-  },
-  primaryImageWrapper: {
-    marginBottom: 16,
-    position: 'relative',
-  },
-  primaryImageItem: {
-    width: '100%',
-    height: 180,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-  },
-  removeBtn: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removeBtnSmall: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // Service Step
-  serviceImagesRow: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingBottom: 8,
-  },
-  serviceImageItem: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-    marginRight: 10,
-  },
-  addServiceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  addServiceBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: '#F3ECFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  serviceCard: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-  },
-  serviceHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  serviceTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  serviceBody: {
-    marginTop: 10,
-  },
-  rowInputs: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  halfInput: {
-    width: '48%',
-  },
-  procedureButton: {
-    borderWidth: 1,
-    borderColor: '#C4B5FD',
-    backgroundColor: '#F3ECFF', // Slight purple tint
-    borderRadius: 12,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  procedureBtnText: {
-    color: '#7C3AED',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  extraInfoBox: {
-    backgroundColor: '#F3ECFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E9D5FF',
-  },
-  extraInfoHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  extraInfoTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1F2937',
-    flex: 1,
-    paddingRight: 10,
-  },
-  smallLabel: {
-    fontSize: 13,
-    color: '#4B5563',
-    marginBottom: 8,
-    marginTop: 4,
-  },
-  textArea: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-    height: 100,
-    color: '#1F2937',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  sectionHeaderNoMargin: {
-    fontSize: 20,
-    fontWeight: '500',
-    color: '#111827',
-  },
-
-  // Procedure Summary Box
-  procedureSummaryBox: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-    backgroundColor: '#fff',
-  },
-  procedureSummaryItem: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    paddingBottom: 12,
-  },
-  procIndex: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginRight: 12,
-    width: 20,
-  },
-  procTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  procDesc: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  editProcedureBtn: {
-    backgroundColor: '#F3ECFF',
-    borderRadius: 10,
-    height: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#C4B5FD',
-  },
-  editProcedureText: {
-    color: '#7C3AED',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-
-});
 
 export default CreateArtistProfileScreen;

@@ -55,7 +55,10 @@ const CoursePlayerScreen = () => {
     return (
         <View style={styles.container}>
             {/* Video Player Area used placeholder image */}
-            <ImageBackground source={course.image} style={styles.videoPlayer}>
+            <ImageBackground
+                source={typeof course.image === 'string' ? { uri: course.image } : course.image}
+                style={styles.videoPlayer}
+            >
                 <View style={styles.videoOverlay}>
                     {/* Header Controls */}
                     <View style={styles.videoHeader}>

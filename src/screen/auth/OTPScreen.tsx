@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -6,26 +6,37 @@ import {
     StyleSheet,
     TouchableOpacity,
     Image,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Colors from '../../utils/Colors';
 import { scale, verticalScale, moderateScale, hp } from '../../utils/Responsive';
+import { useAuth } from '../../context/AuthContext';
+import { apiCall } from '../../services/api';
 
 const OTP_LENGTH = 4;
+const RESEND_TIMER = 30;
 
-const OTPScreen = ({ navigation }: any) => {
+const OTPScreen = ({ navigation, route }: any) => {
+    const { phone, generatedOtp, artistEmail } = route.params || {};
+
     const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
-    const [timer, setTimer] = useState(30);
-    const inputs = useRef<Array<TextInput | null>>([]);
+    const [timer, setTimer] = useState(RESEND_TIMER);
+    const [loading, setLoading] = useState(false);
+    const [currentOtp, setCurrentOtp] = useState<string>(generatedOtp || '');
 
-    /* Timer */
+    const inputs = useRef<Array<TextInput | null>>([]);
+    const { login } = useAuth();
+
+    // ─── Timer countdown ────────────────────────────────────────────────
     useEffect(() => {
-        if (!timer) return;
+        if (timer === 0) return;
         const interval = setInterval(() => setTimer(t => t - 1), 1000);
         return () => clearInterval(interval);
     }, [timer]);
 
-    /* OTP Change */
+    // ─── OTP input handler ───────────────────────────────────────────────
     const handleChange = (value: string, index: number) => {
         if (!/^\d?$/.test(value)) return;
 
@@ -36,18 +47,183 @@ const OTPScreen = ({ navigation }: any) => {
         if (value && index < OTP_LENGTH - 1) {
             inputs.current[index + 1]?.focus();
         }
-
         if (!value && index > 0) {
             inputs.current[index - 1]?.focus();
         }
     };
 
-    const isOtpComplete = otp.every(digit => digit !== '');
-
-    const handleVerify = () => {
-        if (!isOtpComplete) return;
-        navigation.navigate('LocationSearch');
+    // ─── Generate new OTP ────────────────────────────────────────────────
+    const generateNewOtp = (): string => {
+        return Math.floor(1000 + Math.random() * 9000).toString();
     };
+
+    // ─── Resend OTP ──────────────────────────────────────────────────────
+    const handleResend = useCallback(async () => {
+        let newOtp = generateNewOtp(); // local fallback
+        setOtp(Array(OTP_LENGTH).fill(''));
+        setTimer(RESEND_TIMER);
+        inputs.current[0]?.focus();
+
+        console.log('[OTP] Resending OTP for phone', phone, '— local fallback:', newOtp);
+
+        // Try backend send-otp
+        let sentViaServer = false;
+        try {
+            const res = await apiCall('/auth/send-otp', {
+                method: 'POST',
+                body: { mobile: phone },
+            });
+
+            // ✅ Use server's devOtp if provided
+            if (res?.devOtp) {
+                newOtp = String(res.devOtp);
+                console.log('[OTP] Resend — using server devOtp:', newOtp);
+            }
+            sentViaServer = true;
+            console.log('[OTP] Resend via server success');
+        } catch (err: any) {
+            console.log('[OTP] Resend via server failed, using local OTP:', err.message);
+        }
+
+        // Update the OTP we verify against
+        setCurrentOtp(newOtp);
+
+        if (!sentViaServer) {
+            Alert.alert(
+                '📱 OTP Resent',
+                `Your new OTP is: ${newOtp}\n\n(SMS not configured on server, showing here for testing.)`,
+                [{ text: 'OK' }]
+            );
+        }
+    }, [phone]);
+
+    // ─── Authenticate with backend after OTP is verified ─────────────────
+    const authenticateWithBackend = async (enteredOtp: string) => {
+        const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+        // Email derived from phone — matches the /auth/register pattern
+        const artistEmail = `artist_${cleanPhone}@makeupseven.com`;
+
+        // ── Step 1: Call /auth/verify-otp to confirm identity ──────────────
+        let verifyToken: string | null = null;
+        let verifiedUserRole: string | null = null;
+        try {
+            console.log('[Auth] Calling /auth/verify-otp for mobile:', cleanPhone);
+            const verifyRes = await apiCall('/auth/verify-otp', {
+                method: 'POST',
+                body: { mobile: cleanPhone, otp: enteredOtp, role: 'ARTIST' },
+            });
+            verifyToken = verifyRes?.token || verifyRes?.data?.token || null;
+            verifiedUserRole = verifyRes?.user?.role || verifyRes?.data?.user?.role || null;
+            console.log('[Auth] /auth/verify-otp returned role:', verifiedUserRole);
+        } catch (verifyErr: any) {
+            console.log('[Auth] /auth/verify-otp failed:', verifyErr.message);
+        }
+
+        // ── Step 2: If verify-otp gave us an ARTIST token, done ────────────
+        if (verifyToken && verifiedUserRole === 'ARTIST') {
+            console.log('[Auth] Got ARTIST token directly from verify-otp ✅');
+            await login(verifyToken);
+            return;
+        }
+
+        // ── Step 3: Try register as ARTIST with phone-based email ───────────
+        // (This is phone number user trying to become an artist)
+        try {
+            console.log('[Auth] Registering as ARTIST with email:', artistEmail);
+            const regRes = await apiCall('/auth/register', {
+                method: 'POST',
+                body: {
+                    mobile: cleanPhone,
+                    name: `Artist_${cleanPhone.slice(-4)}`,
+                    email: artistEmail,
+                    password: 'password123',
+                    role: 'ARTIST',
+                },
+            });
+            console.log('[Auth] Register response:', regRes?.message);
+        } catch (regErr: any) {
+            console.log('[Auth] Register attempt:', regErr.message);
+            // "already exists" is fine — account may already exist, try login below
+        }
+
+        // ── Step 4: Login with the ARTIST email + password ──────────────────
+        try {
+            console.log('[Auth] Logging in as ARTIST:', artistEmail);
+            const loginRes = await apiCall('/auth/login', {
+                method: 'POST',
+                body: { identifier: artistEmail, password: 'password123' },
+            });
+            const token = loginRes?.token || loginRes?.data?.token;
+            if (token) {
+                console.log('[Auth] Artist login success ✅');
+                await login(token);
+                return;
+            }
+        } catch (loginErr: any) {
+            console.log('[Auth] Artist email login failed:', loginErr.message);
+        }
+
+        // ── Step 5: Try login with mobile as identifier ─────────────────────
+        try {
+            console.log('[Auth] Trying login with mobile number:', cleanPhone);
+            const mobileLoginRes = await apiCall('/auth/login', {
+                method: 'POST',
+                body: { identifier: cleanPhone, password: 'password123' },
+            });
+            const token = mobileLoginRes?.token || mobileLoginRes?.data?.token;
+            if (token) {
+                console.log('[Auth] Mobile login success ✅');
+                await login(token);
+                return;
+            }
+        } catch (mobileErr: any) {
+            console.log('[Auth] Mobile login failed:', mobileErr.message);
+        }
+
+        // ── Step 6: Fallback — use verify-otp token even if USER role ───────
+        if (verifyToken) {
+            console.log('[Auth] Using verify-otp token as last resort (role may be USER)');
+            await login(verifyToken);
+            return;
+        }
+
+        throw new Error('Authentication failed. Please try again or contact support.');
+    };
+
+    // ─── Verify OTP ──────────────────────────────────────────────────────
+    const handleVerify = async () => {
+        const enteredOtp = otp.join('');
+
+        if (enteredOtp.length < OTP_LENGTH) {
+            Alert.alert('Incomplete OTP', 'Please enter all 4 digits of the OTP.');
+            return;
+        }
+
+        // Validate OTP
+        if (enteredOtp !== currentOtp) {
+            Alert.alert(
+                'Invalid OTP ❌',
+                'The OTP you entered is incorrect. Please check and try again.'
+            );
+            return;
+        }
+
+        try {
+            setLoading(true);
+            console.log('[Auth] OTP verified successfully for phone:', phone);
+            await authenticateWithBackend(enteredOtp);
+        } catch (e: any) {
+            console.error('[Auth] Authentication failed:', e);
+            Alert.alert(
+                'Login Failed',
+                e.message || 'Something went wrong. Please try again.'
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const isOtpComplete = otp.every(digit => digit !== '');
 
     return (
         <View style={styles.container}>
@@ -75,7 +251,7 @@ const OTPScreen = ({ navigation }: any) => {
             <View style={styles.content}>
                 <Text style={styles.heading}>OTP Verification</Text>
                 <Text style={styles.subText}>
-                    We’ve sent an OTP to +91 XXXXXXXX3211
+                    We've sent an OTP to +91 {phone || 'XXXXXXXXXX'}
                 </Text>
 
                 {/* OTP Inputs */}
@@ -83,7 +259,7 @@ const OTPScreen = ({ navigation }: any) => {
                     {otp.map((value, index) => (
                         <TextInput
                             key={index}
-                            ref={ref => (inputs.current[index] = ref)}
+                            ref={ref => { inputs.current[index] = ref; }}
                             style={styles.otpInput}
                             keyboardType="number-pad"
                             maxLength={1}
@@ -94,24 +270,36 @@ const OTPScreen = ({ navigation }: any) => {
                     ))}
                 </View>
 
-                {/* Timer */}
-                <Text style={styles.timerText}>
-                    Retry OTP in{' '}
-                    <Text style={styles.timerCount}>
-                        00:{timer < 10 ? `0${timer}` : timer}
-                    </Text>
-                </Text>
+                {/* Timer & Resend */}
+                <View style={styles.timerRow}>
+                    {timer > 0 ? (
+                        <Text style={styles.timerText}>
+                            Retry OTP in{' '}
+                            <Text style={styles.timerCount}>
+                                00:{timer < 10 ? `0${timer}` : timer}
+                            </Text>
+                        </Text>
+                    ) : (
+                        <TouchableOpacity onPress={handleResend}>
+                            <Text style={styles.resendText}>Resend OTP</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
 
-                {/* Confirm */}
+                {/* Confirm Button */}
                 <TouchableOpacity
                     style={[
                         styles.confirmBtn,
-                        !isOtpComplete && styles.disabledBtn,
+                        (!isOtpComplete || loading) && styles.disabledBtn,
                     ]}
                     onPress={handleVerify}
-                    disabled={!isOtpComplete}
+                    disabled={!isOtpComplete || loading}
                 >
-                    <Text style={styles.confirmText}>Confirm</Text>
+                    {loading ? (
+                        <ActivityIndicator color={Colors.white} />
+                    ) : (
+                        <Text style={styles.confirmText}>Confirm</Text>
+                    )}
                 </TouchableOpacity>
             </View>
         </View>
@@ -119,6 +307,7 @@ const OTPScreen = ({ navigation }: any) => {
 };
 
 export default OTPScreen;
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -141,7 +330,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: verticalScale(10),
-        bottom: verticalScale(10)
+        bottom: verticalScale(10),
     },
 
     backText: {
@@ -162,11 +351,12 @@ const styles = StyleSheet.create({
     logoPrimary: {
         color: Colors.primary,
     },
+
     imageContainer: {
         height: scale(28),
         width: scale(174),
         marginBottom: verticalScale(16),
-        alignSelf: 'flex-start'
+        alignSelf: 'flex-start',
     },
 
     logosty: {
@@ -177,6 +367,7 @@ const styles = StyleSheet.create({
     content: {
         flex: 1,
         paddingHorizontal: scale(24),
+        paddingTop: verticalScale(24),
     },
 
     heading: {
@@ -210,10 +401,22 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.inputBackground,
     },
 
+    timerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: verticalScale(20),
+    },
+
     timerText: {
         fontSize: scale(14),
         color: Colors.text,
-        marginBottom: verticalScale(20),
+    },
+
+    resendText: {
+        fontSize: scale(14),
+        color: Colors.primary,
+        fontWeight: 'bold',
     },
 
     timerCount: {

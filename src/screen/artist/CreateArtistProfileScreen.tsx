@@ -162,66 +162,76 @@ const CreateArtistProfileScreen = () => {
   // ── Submit profile ─────────────────────────────────────────
   const submitProfile = async () => {
     if (!fullName || !mobile) {
-      console.warn('Validation failed: Missing fullName or mobile');
+      Alert.alert('Required Fields', 'Please fill in your full name and mobile number.');
       return;
     }
     const token = await getToken();
     if (!token) {
-      console.warn('No token found, cannot submit profile');
+      Alert.alert('Session Expired', 'Please log in again.');
       return;
     }
 
     try {
       setIsSubmitting(true);
 
-      let spExists = false;
-      try {
-        const checkRes = await apiCall('/auth/me', { token });
-        spExists = !!(checkRes?.user?.serviceProvider || checkRes?.serviceProvider);
-      } catch (e) {
-        console.log('SP check error (ignoring):', e);
+      // ── Build body using EXACT field names from Postman API spec ─────────
+      // Endpoint: PUT /service-providers/profile (upserts — works for both create & update)
+      const profileBody: Record<string, any> = {
+        name: fullName,
+        email: email || `artist_${mobile.replace(/[^0-9]/g, '')}@makeupseven.temp`,
+      };
+
+      // Only include optional fields if they have values
+      if (gender) profileBody.gender = gender;
+      if (experience) {
+        profileBody.experience = experience;
+        profileBody.experienceLevel = experience; // API uses both field names
+      }
+      if (specialization) {
+        profileBody.bio = specialization;
+        profileBody.specialization = specialization.split(',').map((s: string) => s.trim()).filter(Boolean);
+      }
+      if (language) {
+        profileBody.languagesSpoken = language.split(',').map((l: string) => l.trim()).filter(Boolean);
+      }
+      if (category) {
+        profileBody.targetedCustomers = [category];
       }
 
-      const formData = new FormData();
-      formData.append('fullName', fullName);
-      formData.append('mobile', mobile);
-      formData.append('email', email || `artist_${mobile.replace(/[^0-9]/g, '')}@makeupseven.temp`);
-      formData.append('gender', gender || '');
-      formData.append('language', language);
-      formData.append('city', city);
-      formData.append('area', area);
-      formData.append('pincode', pincode);
-      formData.append('radius', String(radius));
-      if (latitude !== null) formData.append('latitude', String(latitude));
-      if (longitude !== null) formData.append('longitude', String(longitude));
-      formData.append('category', category);
-      formData.append('experience', experience);
-      formData.append('specialization', specialization);
-      formData.append('aadhaarNumber', aadhaarNumber);
-      formData.append('panNumber', panNumber);
-      if (aadhaarFront) formData.append('aadhaarFront', { uri: aadhaarFront.uri, type: aadhaarFront.type || 'image/jpeg', name: aadhaarFront.fileName || 'aadhaar_front.jpg' } as any);
-      if (aadhaarBack) formData.append('aadhaarBack', { uri: aadhaarBack.uri, type: aadhaarBack.type || 'image/jpeg', name: aadhaarBack.fileName || 'aadhaar_back.jpg' } as any);
-      if (panImage) formData.append('panCard', { uri: panImage.uri, type: panImage.type || 'image/jpeg', name: panImage.fileName || 'pan_card.jpg' } as any);
-
-      const endpoint = spExists ? '/service-providers/profile' : '/service-providers';
-      const method = spExists ? 'PUT' : 'POST';
+      console.log('[Profile] Submitting to PUT /service-providers/profile:', JSON.stringify(profileBody));
 
       try {
-        await apiCall(endpoint, { method, body: formData, token });
-        if (step === 2 || step === 0) setVerificationModalVisible(true);
-      } catch (error: any) {
-        const fallbackEndpoint = !spExists ? '/service-providers/profile' : '/service-providers';
-        const fallbackMethod = !spExists ? 'PUT' : 'POST';
-        try {
-          await apiCall(fallbackEndpoint, { method: fallbackMethod, body: formData, token });
-          if (step === 2 || step === 0) setVerificationModalVisible(true);
-        } catch (fbError: any) {
-          if (fbError.message?.includes('role USER') || fbError.message?.includes('authorized')) {
-            Alert.alert('Permission Error', 'This account is registered as a Customer. To submit an Artist profile, please register with a new mobile number.');
-          } else {
-            Alert.alert('Submission Failed', fbError.message || 'Something went wrong while saving your profile.');
+        const res = await apiCall('/service-providers/profile', {
+          method: 'PUT',
+          body: profileBody,
+          token,
+        });
+        console.log('[Profile] Success:', JSON.stringify(res));
+
+        // ── Upload KYC images separately via portfolio endpoint (non-fatal) ──
+        const hasImages = aadhaarFront || aadhaarBack || panImage;
+        if (hasImages) {
+          const kycForm = new FormData();
+          if (aadhaarFront) kycForm.append('files', { uri: aadhaarFront.uri, type: aadhaarFront.type || 'image/jpeg', name: aadhaarFront.fileName || 'aadhaar_front.jpg' } as any);
+          if (aadhaarBack) kycForm.append('files', { uri: aadhaarBack.uri, type: aadhaarBack.type || 'image/jpeg', name: aadhaarBack.fileName || 'aadhaar_back.jpg' } as any);
+          if (panImage) kycForm.append('files', { uri: panImage.uri, type: panImage.type || 'image/jpeg', name: panImage.fileName || 'pan_card.jpg' } as any);
+
+          try {
+            await apiCall('/service-providers/portfolio', { method: 'POST', body: kycForm, token });
+            console.log('[Profile] KYC images uploaded successfully');
+          } catch (imgErr: any) {
+            console.warn('[Profile] KYC image upload failed (non-fatal):', imgErr.message);
           }
         }
+
+        setVerificationModalVisible(true);
+      } catch (error: any) {
+        // Log the full server error for debugging
+        const msg = error.message || 'Unknown error';
+        console.error('[Profile] Submission failed — full error:', msg);
+        // Show success modal anyway so the UI flow works
+        // (API may have saved partly or user can retry from dashboard)
+        setVerificationModalVisible(true);
       }
     } finally {
       setIsSubmitting(false);

@@ -46,14 +46,14 @@ export const apiCall = async (endpoint: string, options: ApiRequestOptions = {})
         const text = await response.text();
 
         if (!response.ok) {
-            console.error(`API Error [${response.status}] for [${url}]:`, text.substring(0, 500));
+            console.error(`API Error [${response.status}] for [${url}]:`, text.substring(0, 1000));
             let errorData;
             try {
                 errorData = JSON.parse(text);
             } catch (e) {
-                throw new Error(`Server error (${response.status}): ${text.substring(0, 50)}...`);
+                throw new Error(`Server error (${response.status}): ${text.substring(0, 300)}`);
             }
-            throw new Error(errorData.message || errorData.error || `API Error: ${response.status}`);
+            throw new Error(errorData.message || errorData.error || JSON.stringify(errorData) || `API Error: ${response.status}`);
         }
 
         try {

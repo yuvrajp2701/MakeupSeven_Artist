@@ -17,7 +17,22 @@ const BookingDetailsScreen = () => {
   const { userToken } = useAuth();
   const bookingId = params._id || params.id || params.bookingId;
 
+  // Detect dummy bookings so we skip real API calls
+  const isDummy = typeof bookingId === 'string' && bookingId.startsWith('dummy-');
+
   const handleStatusUpdate = async (newStatus: string) => {
+    // ── Dummy mode: instant local state update, no network ──
+    if (isDummy) {
+      setLoading(true);
+      await new Promise<void>(r => setTimeout(r, 600)); // simulate network delay
+      if (newStatus === 'APPROVED' || newStatus === 'STARTED') {
+        setIsAccepted(true);
+      } else if (newStatus === 'REJECTED' || newStatus === 'CANCELLED') {
+        navigation.goBack();
+      }
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const token = userToken || await getToken();
@@ -160,6 +175,14 @@ const BookingDetailsScreen = () => {
                 onPress={async () => {
                   try {
                     setLoading(true);
+
+                    if (isDummy) {
+                      // Dummy mode: skip API, go straight to ServiceOngoing
+                      await new Promise<void>(r => setTimeout(r, 600));
+                      navigation.navigate('ServiceOngoing', { ...params, bookingId });
+                      return;
+                    }
+
                     const token = userToken || await getToken();
                     if (!token) return;
 

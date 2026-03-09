@@ -28,10 +28,10 @@ const AppNavigator = () => {
                     // ── Unauthenticated ──────────────────────────────────────
                     <RootStack.Screen name="Auth" component={AuthStack} />
                 ) : (
-                    // ── Authenticated: profile form MUST be filled first ──────
+                    // ── Authenticated: Land on dashboard, profile reachable from within ──
                     <>
-                        <RootStack.Screen name="profile" component={CreateArtistProfileScreen} />
                         <RootStack.Screen name="Artist" component={ArtistStackNavigator} />
+                        <RootStack.Screen name="profile" component={CreateArtistProfileScreen} />
                         <RootStack.Screen name="CourseCheckout" component={CourseCheckoutScreen} />
                         <RootStack.Screen name="CourseDetails" component={CourseDetailsScreen} />
                         <RootStack.Screen name="CoursePlayer" component={CoursePlayerScreen} />

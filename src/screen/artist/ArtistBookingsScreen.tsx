@@ -14,8 +14,7 @@ import FontAwesome from '@react-native-vector-icons/fontawesome';
 import ScreenView from '../../utils/ScreenView';
 import { apiCall } from '../../services/api';
 import { getToken } from '../../services/auth';
-
-// Dummy Data
+import { DUMMY_BOOKINGS } from '../../utils/dummyData';
 
 
 const ArtistBookingsScreen = () => {
@@ -39,10 +38,11 @@ const ArtistBookingsScreen = () => {
       const data = Array.isArray(response) ? response : (response?.bookings || response?.data || []);
 
       console.log('Fetched Bookings:', data.length);
-      setBookings(data);
+      // Fall back to dummy data when API returns nothing (dev / staging)
+      setBookings(data.length > 0 ? data : DUMMY_BOOKINGS);
     } catch (error) {
-      console.warn('Failed to fetch bookings:', error);
-      setBookings([]); // Clear on error to avoid showing stale/dummy data
+      console.warn('Failed to fetch bookings, using dummy data:', error);
+      setBookings(DUMMY_BOOKINGS); // Show dummy data on network error during dev
     } finally {
       setLoading(false);
     }

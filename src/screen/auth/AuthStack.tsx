@@ -10,7 +10,7 @@ export type AuthStackParamList = {
     OTPScreen: {
         phone: string;
         generatedOtp: string;
-        artistEmail: string;
+        artistEmail?: string;
     };
     LocationSearch: undefined;
     ReferralCode: undefined;

@@ -17,30 +17,63 @@ const CustomerOtpScreen = () => {
   const [loading, setLoading] = useState(false);
   const { userToken } = useAuth();
 
-  const handleComplete = async (otpString: string) => {
+  const isStartMode = params?.mode === 'start';
+
+  const handleAction = async (otpString: string) => {
     try {
       setLoading(true);
       const token = userToken || await getToken();
       if (!token) return;
 
       const bookingId = params.params?.bookingId || params.bookingId || params.id;
+      const isDummy = typeof bookingId === 'string' && bookingId.startsWith('dummy-');
 
-      const response = await apiCall(`/booking/${bookingId}/complete`, {
+      if (isDummy) {
+        await new Promise<void>(r => setTimeout(r, 600));
+        if (isStartMode) {
+          navigation.replace('ServiceOngoing', {
+            ...params,
+            bookingId: bookingId
+          });
+        } else {
+          navigation.replace('ServiceCompleted', {
+            price: params?.price,
+          });
+        }
+        return;
+      }
+
+      const endpoint = isStartMode ? 'start' : 'complete';
+
+      const response = await apiCall(`/booking/${bookingId}/${endpoint}`, {
         method: 'PUT',
         token,
         body: { otp: parseInt(otpString) }
       });
 
-      console.log('Service completed successfully:', response);
-      navigation.replace('ServiceCompleted', {
-        price: params?.price,
-      });
+      console.log(`Service ${endpoint} success:`, response);
+      if (isStartMode) {
+        navigation.replace('ServiceOngoing', {
+          ...params,
+          bookingId: bookingId
+        });
+      } else {
+        navigation.replace('ServiceCompleted', {
+          price: params?.price,
+        });
+      }
     } catch (e) {
-      console.error('Failed to complete service:', e);
-      // Still navigate for demo/testing or if API is just missing the specific entry
-      navigation.replace('ServiceCompleted', {
-        price: params?.price,
-      });
+      console.error(`Failed to ${isStartMode ? 'start' : 'complete'} service:`, e);
+      if (isStartMode) {
+        navigation.replace('ServiceOngoing', {
+          ...params,
+          bookingId: params.params?.bookingId || params.bookingId || params.id
+        });
+      } else {
+        navigation.replace('ServiceCompleted', {
+          price: params?.price,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -57,14 +90,12 @@ const CustomerOtpScreen = () => {
       inputRefs.current[index + 1]?.focus();
     }
 
-    // 🔥 auto navigate when OTP complete
     if (updatedOtp.every(d => d !== '')) {
       Keyboard.dismiss();
       const otpString = updatedOtp.join('');
-      handleComplete(otpString);
+      handleAction(otpString);
     }
   };
-
 
   const handleKeyPress = (e: any, index: number) => {
     if (e.nativeEvent.key === 'Backspace' && otp[index] === '' && index > 0) {
@@ -89,9 +120,9 @@ const CustomerOtpScreen = () => {
             <FontAwesome name="mobile" size={40} color="#7C3AED" />
           </View>
 
-          <Text style={styles.title}>Customer OTP</Text>
+          <Text style={styles.title}>{isStartMode ? 'Start Service OTP' : 'Customer OTP'}</Text>
           <Text style={styles.subtitle}>
-            Ask the customer for their 4-digit completion code
+            {isStartMode ? 'Ask the customer for their 4-digit start code' : 'Ask the customer for their 4-digit completion code'}
           </Text>
 
           {/* OTP INPUTS */}
@@ -127,8 +158,14 @@ const CustomerOtpScreen = () => {
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>How it works</Text>
             <StepRow text="Customer receives OTP on their app" />
-            <StepRow text="Payment will be processed to your wallet" />
-            <StepRow text="Enter the OTP to confirm service completion" />
+            {isStartMode ? (
+              <StepRow text="Enter the OTP to confirm service start" />
+            ) : (
+              <>
+                <StepRow text="Payment will be processed to your wallet" />
+                <StepRow text="Enter the OTP to confirm service completion" />
+              </>
+            )}
           </View>
 
           {/* COMPLETE SERVICE */}
@@ -139,9 +176,9 @@ const CustomerOtpScreen = () => {
               styles.completeBtn,
               (!otp.every(d => d !== '') || loading) && styles.disabledBtn,
             ]}
-            onPress={() => handleComplete(otp.join(''))}
+            onPress={() => handleAction(otp.join(''))}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.completeText}>Complete Service</Text>}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.completeText}>{isStartMode ? 'Start Service' : 'Complete Service'}</Text>}
           </TouchableOpacity>
         </View>
       </ScrollView>

@@ -172,44 +172,12 @@ const BookingDetailsScreen = () => {
               {/* START SERVICE */}
               <TouchableOpacity
                 style={[styles.startServiceBtn, loading && { opacity: 0.7 }]}
-                onPress={async () => {
-                  try {
-                    setLoading(true);
-
-                    if (isDummy) {
-                      // Dummy mode: skip API, go straight to ServiceOngoing
-                      await new Promise<void>(r => setTimeout(r, 600));
-                      navigation.navigate('ServiceOngoing', { ...params, bookingId });
-                      return;
-                    }
-
-                    const token = userToken || await getToken();
-                    if (!token) return;
-
-                    if (!bookingId) {
-                      console.warn("No booking ID found in params:", params);
-                      return;
-                    }
-
-                    // Start API - requires OTP from Approval response in a real flow
-                    // Use a mock OTP for now as per Postman example
-                    await apiCall(`/booking/${bookingId}/start`, {
-                      method: 'PUT',
-                      token,
-                      body: { otp: 12345 }
-                    });
-
-                    navigation.navigate('ServiceOngoing', {
-                      ...params,
-                      bookingId: bookingId
-                    });
-                  } catch (e) {
-                    console.error('Failed to start service:', e);
-                    // Fallback navigate for demo if API fails or if OTP is needed
-                    navigation.navigate('ServiceOngoing', { ...params, bookingId: params.id || params._id });
-                  } finally {
-                    setLoading(false);
-                  }
+                onPress={() => {
+                  navigation.navigate('CustomerOtp', {
+                    ...params,
+                    bookingId: bookingId,
+                    mode: 'start'
+                  });
                 }}
                 disabled={loading}
               >

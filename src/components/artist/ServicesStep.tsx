@@ -28,9 +28,10 @@ interface Props {
         setValue: (val: string) => void,
         layout: { x: number; y: number; width: number; height: number }
     ) => void;
+    pickDocument?: (onFilePicked: (file: any) => void) => void;
 }
 
-const ServicesStep: React.FC<Props> = ({ openDropdown }) => {
+const ServicesStep: React.FC<Props> = ({ openDropdown, pickDocument }) => {
     const [serviceExpanded, setServiceExpanded] = useState(true);
     const [serviceCategory, setServiceCategory] = useState('');
     const [serviceName, setServiceName] = useState('');
@@ -42,16 +43,29 @@ const ServicesStep: React.FC<Props> = ({ openDropdown }) => {
     const [whoShouldAvoid, setWhoShouldAvoid] = useState('');
     const [extraInfoEnabled, setExtraInfoEnabled] = useState(true);
 
-    const [exclusiveEssentials, setExclusiveEssentials] = useState<Array<{ image: any; title: string }>>([]);
+    const [exclusiveEssentials, setExclusiveEssentials] = useState<Array<{ image: any; title: string; type?: string }>>([]);
     const [essentialModalVisible, setEssentialModalVisible] = useState(false);
     const [essentialTitle, setEssentialTitle] = useState('');
+    const [essentialImage, setEssentialImage] = useState<any>(null);
 
     const [procedureModalVisible, setProcedureModalVisible] = useState(false);
     const [procedures, setProcedures] = useState([{ title: '', description: '', expanded: true }]);
     const [proceduresSaved, setProceduresSaved] = useState(false);
 
-    const [servicePrimaryImages, setServicePrimaryImages] = useState(INITIAL_PRIMARY);
-    const [serviceOtherImages, setServiceOtherImages] = useState(INITIAL_OTHER);
+    const [servicePrimaryImages, setServicePrimaryImages] = useState<any[]>(INITIAL_PRIMARY);
+    const [serviceOtherImages, setServiceOtherImages] = useState<any[]>(INITIAL_OTHER);
+
+    const handleUploadPrimary = () => {
+        if (pickDocument) {
+            pickDocument((file) => setServicePrimaryImages([...servicePrimaryImages, file]));
+        }
+    };
+
+    const handleUploadOther = () => {
+        if (pickDocument) {
+            pickDocument((file) => setServiceOtherImages([...serviceOtherImages, file]));
+        }
+    };
 
     return (
         <View>
@@ -93,21 +107,28 @@ const ServicesStep: React.FC<Props> = ({ openDropdown }) => {
                         </View>
 
                         {/* Primary Service Images */}
-                        <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 4 }]}>Primary Service Images (Max 3)</Text>
-                        <Text style={[styles.helperText, { marginBottom: 12 }]}>Main wide shots for this service</Text>
+                        <Text style={[styles.sectionTitle, { marginTop: 24, marginBottom: 4 }]}>Primary Service Files (Max 3)</Text>
+                        <Text style={[styles.helperText, { marginBottom: 12 }]}>Main shots for this service</Text>
                         {servicePrimaryImages.length < 3 && (
-                            <TouchableOpacity style={styles.uploadBox} activeOpacity={0.8}>
+                            <TouchableOpacity style={styles.uploadBox} activeOpacity={0.8} onPress={handleUploadPrimary}>
                                 <View style={styles.uploadIconCircle}>
-                                    <FontAwesome name="upload" size={20} color="#7C3AED" />
+                                    <FontAwesome name="paperclip" size={20} color="#7C3AED" />
                                 </View>
-                                <Text style={styles.uploadTitle}>Upload Primary Image</Text>
-                                <Text style={styles.uploadSubtitle}>16:9 Aspect Ratio</Text>
+                                <Text style={styles.uploadTitle}>Attach Primary File</Text>
+                                <Text style={styles.uploadSubtitle}>PNG, JPG, PDF up to 10MB each</Text>
                             </TouchableOpacity>
                         )}
                         <View style={styles.primaryImagesList}>
                             {servicePrimaryImages.map((img, index) => (
                                 <View key={index} style={styles.primaryImageWrapper}>
-                                    <Image source={img} style={styles.primaryImageItem} resizeMode="cover" />
+                                    {typeof img === 'number' || img.type?.includes('image') ? (
+                                        <Image source={typeof img === 'number' ? img : { uri: img.uri }} style={styles.primaryImageItem} resizeMode="cover" />
+                                    ) : (
+                                        <View style={[styles.primaryImageItem, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>
+                                            <FontAwesome name="file-text-o" size={40} color="#7C3AED" />
+                                            <Text style={{ fontSize: 12, marginTop: 8 }}>{img.name}</Text>
+                                        </View>
+                                    )}
                                     <TouchableOpacity style={styles.removeBtn} onPress={() => {
                                         const updated = [...servicePrimaryImages];
                                         updated.splice(index, 1);
@@ -123,18 +144,25 @@ const ServicesStep: React.FC<Props> = ({ openDropdown }) => {
                         <Text style={[styles.sectionTitle, { marginTop: 12, marginBottom: 4 }]}>Service Gallery (Max 6)</Text>
                         <Text style={[styles.helperText, { marginBottom: 12 }]}>Additional details or angles</Text>
                         {serviceOtherImages.length < 6 && (
-                            <TouchableOpacity style={styles.uploadBox} activeOpacity={0.8}>
+                            <TouchableOpacity style={styles.uploadBox} activeOpacity={0.8} onPress={handleUploadOther}>
                                 <View style={styles.uploadIconCircle}>
-                                    <FontAwesome name="upload" size={20} color="#7C3AED" />
+                                    <FontAwesome name="paperclip" size={20} color="#7C3AED" />
                                 </View>
-                                <Text style={styles.uploadTitle}>Upload Gallery Image</Text>
-                                <Text style={styles.uploadSubtitle}>Square images</Text>
+                                <Text style={styles.uploadTitle}>Attach Gallery File</Text>
+                                <Text style={styles.uploadSubtitle}>PNG, JPG, PDF up to 10MB each</Text>
                             </TouchableOpacity>
                         )}
                         <View style={styles.imageGrid}>
                             {serviceOtherImages.map((img, index) => (
                                 <View key={index} style={styles.gridImageWrapper}>
-                                    <Image source={img} style={styles.gridImage} resizeMode="cover" />
+                                    {typeof img === 'number' || img.type?.includes('image') ? (
+                                        <Image source={typeof img === 'number' ? img : { uri: img.uri }} style={styles.gridImage} resizeMode="cover" />
+                                    ) : (
+                                        <View style={[styles.gridImage, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>
+                                            <FontAwesome name="file-text-o" size={30} color="#7C3AED" />
+                                            <Text style={{ fontSize: 9, marginTop: 4, textAlign: 'center', paddingHorizontal: 4 }} numberOfLines={1}>{img.name}</Text>
+                                        </View>
+                                    )}
                                     <TouchableOpacity style={styles.removeBtnSmall} onPress={() => {
                                         const updated = [...serviceOtherImages];
                                         updated.splice(index, 1);
@@ -268,10 +296,14 @@ const ServicesStep: React.FC<Props> = ({ openDropdown }) => {
                 onClose={() => setEssentialModalVisible(false)}
                 essentialTitle={essentialTitle}
                 setEssentialTitle={setEssentialTitle}
+                pickDocument={pickDocument}
+                essentialImage={essentialImage}
+                setEssentialImage={setEssentialImage}
                 onAdd={() => {
                     if (!essentialTitle.trim()) return;
-                    setExclusiveEssentials(prev => [...prev, { image: ESSENTIAL_PLACEHOLDER, title: essentialTitle.trim() }]);
+                    setExclusiveEssentials(prev => [...prev, { image: essentialImage || ESSENTIAL_PLACEHOLDER, title: essentialTitle.trim(), type: essentialImage?.type }]);
                     setEssentialModalVisible(false);
+                    setEssentialImage(null);
                 }}
             />
 

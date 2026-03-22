@@ -12,11 +12,6 @@ import {
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import styles from './styles/createArtistStyles';
 
-interface EssentialItem {
-    image: any;
-    title: string;
-}
-
 interface Props {
     // Modal state
     visible: boolean;
@@ -24,12 +19,18 @@ interface Props {
     essentialTitle: string;
     setEssentialTitle: (v: string) => void;
     onAdd: () => void;
+    pickDocument?: (onFilePicked: (file: any) => void) => void;
+    essentialImage?: any;
+    setEssentialImage: (img: any) => void;
 }
 
 const EssentialsModal: React.FC<Props> = ({
     visible, onClose,
     essentialTitle, setEssentialTitle,
     onAdd,
+    pickDocument,
+    essentialImage,
+    setEssentialImage,
 }) => (
     <Modal
         visible={visible}
@@ -42,15 +43,32 @@ const EssentialsModal: React.FC<Props> = ({
                 <View style={styles.essentialModalHandle} />
 
                 <Text style={styles.essentialModalTitle}>Add Exclusive Essential</Text>
-                <Text style={styles.essentialModalSubtitle}>Choose an image and give it a name</Text>
+                <Text style={styles.essentialModalSubtitle}>Choose a document/image and give it a name</Text>
 
                 {/* Image Picker Placeholder */}
-                <TouchableOpacity style={styles.essentialImagePickerBox} activeOpacity={0.8}>
-                    <View style={styles.essentialImagePickerIcon}>
-                        <FontAwesome name="camera" size={24} color="#7C3AED" />
-                    </View>
-                    <Text style={styles.essentialImagePickerText}>Tap to select image</Text>
-                    <Text style={styles.essentialImagePickerSub}>PNG, JPG up to 5MB</Text>
+                <TouchableOpacity
+                    style={styles.essentialImagePickerBox}
+                    activeOpacity={0.8}
+                    onPress={() => pickDocument && pickDocument(setEssentialImage)}
+                >
+                    {essentialImage ? (
+                        <View style={{ width: '100%', alignItems: 'center' }}>
+                            {essentialImage.type?.includes('image') || typeof essentialImage === 'number' ? (
+                                <Image source={typeof essentialImage === 'number' ? essentialImage : { uri: essentialImage.uri }} style={{ width: 60, height: 60, borderRadius: 10 }} />
+                            ) : (
+                                <FontAwesome name="file-text-o" size={40} color="#7C3AED" />
+                            )}
+                            <Text style={{ fontSize: 12, marginTop: 8, color: '#374151' }}>{essentialImage.name || 'File Selected'}</Text>
+                        </View>
+                    ) : (
+                        <>
+                            <View style={styles.essentialImagePickerIcon}>
+                                <FontAwesome name="paperclip" size={24} color="#7C3AED" />
+                            </View>
+                            <Text style={styles.essentialImagePickerText}>Tap to attach file</Text>
+                            <Text style={styles.essentialImagePickerSub}>Images or PDF up to 10MB</Text>
+                        </>
+                    )}
                 </TouchableOpacity>
 
                 {/* Title Input */}

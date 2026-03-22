@@ -69,13 +69,13 @@ const ArtistHomeScreen = ({ navigation }: any) => {
 
         // 1.1 Get Wallet/Earnings
         try {
-          const walletResponse = await apiCall('/reward/user/wallet', { method: 'GET', token });
+          const walletResponse = await apiCall('/reward/user/wallet', { method: 'GET', token, silent: true });
           if (walletResponse && typeof walletResponse === 'object') {
             setTotalEarnings(walletResponse.totalPoints || walletResponse.balance || 0);
           }
 
           // 1.2 Get Activity/Ledger
-          const ledgerResponse = await apiCall('/reward/user/wallet/ledger', { method: 'GET', token });
+          const ledgerResponse = await apiCall('/reward/user/wallet/ledger', { method: 'GET', token, silent: true });
           const ledgerList = Array.isArray(ledgerResponse) ? ledgerResponse : (ledgerResponse?.ledger || ledgerResponse?.data || []);
 
           if (ledgerList.length > 0) {

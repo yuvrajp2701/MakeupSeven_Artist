@@ -53,17 +53,16 @@ interface Props {
     setCity: (v: string) => void;
 
     // KYC
-    aadhaarNumber: string;
-    setAadhaarNumber: (v: string) => void;
-    aadhaarFront: any;
-    setAadhaarFront: (v: any) => void;
-    aadhaarBack: any;
-    setAadhaarBack: (v: any) => void;
-    panNumber: string;
-    setPanNumber: (v: string) => void;
-    panImage: any;
-    setPanImage: (v: any) => void;
+    documentNumber: string;
+    setDocumentNumber: (v: string) => void;
+    documentImages: any[];
+    setDocumentImages: (v: any[]) => void;
     pickDocument: (setter: (v: any) => void) => void;
+
+    // Profile Photo
+    profilePhoto: any;
+    setProfilePhoto: (v: any) => void;
+    pickImage: (setter: (v: any) => void) => void;
 
     // Dropdown helper
     openDropdown: (
@@ -89,12 +88,11 @@ const ProfileInfoStep: React.FC<Props> = ({
     category, setCategory,
     experience, setExperience,
     specialization, setSpecialization,
-    aadhaarNumber, setAadhaarNumber,
-    aadhaarFront, setAadhaarFront,
-    aadhaarBack, setAadhaarBack,
-    panNumber, setPanNumber,
-    panImage, setPanImage,
+    documentNumber, setDocumentNumber,
+    documentImages, setDocumentImages,
     pickDocument,
+    profilePhoto, setProfilePhoto,
+    pickImage,
     openDropdown,
 }) => {
     return (
@@ -102,13 +100,26 @@ const ProfileInfoStep: React.FC<Props> = ({
             {/* ── Personal Information ── */}
             <Text style={styles.sectionHeader}>Personal Information</Text>
 
-            <Text style={styles.fieldLabel}>Upload photo</Text>
-            <TouchableOpacity style={styles.uploadBox} activeOpacity={0.8}>
-                <View style={styles.uploadIconCircle}>
-                    <FontAwesome name="upload" size={20} color="#7C3AED" />
-                </View>
-                <Text style={styles.uploadTitle}>Upload Images</Text>
-                <Text style={styles.uploadSubtitle}>PNG, JPG up to 10MB each</Text>
+            <Text style={styles.fieldLabel}>Profile Photo</Text>
+            <TouchableOpacity
+                style={styles.uploadBox}
+                activeOpacity={0.8}
+                onPress={() => pickImage(setProfilePhoto)}
+            >
+                {profilePhoto ? (
+                    <View style={{ width: '100%', alignItems: 'center' }}>
+                        <Image source={{ uri: profilePhoto.uri }} style={{ width: 80, height: 80, borderRadius: 40 }} />
+                        <Text style={{ fontSize: 12, marginTop: 8, color: '#7C3AED' }}>Change Photo</Text>
+                    </View>
+                ) : (
+                    <>
+                        <View style={styles.uploadIconCircle}>
+                            <FontAwesome name="image" size={20} color="#7C3AED" />
+                        </View>
+                        <Text style={styles.uploadTitle}>Upload Profile Photo</Text>
+                        <Text style={styles.uploadSubtitle}>PNG, JPG up to 10MB</Text>
+                    </>
+                )}
             </TouchableOpacity>
 
             <InputGroup label="Full name" placeholder="Enter your full name" value={fullName} onChangeText={setFullName} />
@@ -242,17 +253,17 @@ const ProfileInfoStep: React.FC<Props> = ({
             <Text style={[styles.sectionHeader, { marginTop: 28 }]}>KYC Documents</Text>
             <Text style={styles.helperText}>Required for artist verification. Kept private and secure.</Text>
 
-            {/* Aadhaar Card */}
+            {/* Document (replacing Aadhaar) */}
             <View style={styles.kycCard}>
                 <View style={styles.kycCardHeader}>
                     <View style={styles.kycIconBadge}>
-                        <FontAwesome name="id-card" size={16} color="#7C3AED" />
+                        <FontAwesome name="paperclip" size={16} color="#7C3AED" />
                     </View>
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.kycCardTitle}>Aadhaar Card</Text>
-                        <Text style={styles.kycCardSub}>Upload front & back of your Aadhaar</Text>
+                        <Text style={styles.kycCardTitle}>Document</Text>
+                        <Text style={styles.kycCardSub}>Attach identification document (PDF, PNG, JPG)</Text>
                     </View>
-                    {aadhaarFront && aadhaarBack && (
+                    {documentImages.length > 0 && (
                         <View style={styles.kycDoneBadge}>
                             <FontAwesome name="check" size={11} color="#fff" />
                         </View>
@@ -260,90 +271,44 @@ const ProfileInfoStep: React.FC<Props> = ({
                 </View>
 
                 <InputGroup
-                    label="Aadhaar Number"
-                    placeholder="XXXX XXXX XXXX"
-                    value={aadhaarNumber}
-                    onChangeText={(v: string) => setAadhaarNumber(v.replace(/[^0-9]/g, '').slice(0, 12))}
-                    keyboardType="numeric"
+                    label="Document Number"
+                    placeholder="Enter ID number"
+                    value={documentNumber}
+                    onChangeText={setDocumentNumber}
                 />
 
                 <View style={styles.kycImagesRow}>
-                    {/* Front */}
-                    <View style={styles.kycImageSlot}>
-                        <Text style={styles.kycSlotLabel}>Front side</Text>
-                        {aadhaarFront ? (
-                            <View style={styles.kycPreviewWrapper}>
-                                <Image source={{ uri: aadhaarFront.uri }} style={styles.kycPreview} resizeMode="cover" />
-                                <TouchableOpacity style={styles.kycRemoveBtn} onPress={() => setAadhaarFront(null)}>
-                                    <FontAwesome name="times" size={11} color="#fff" />
-                                </TouchableOpacity>
-                            </View>
-                        ) : (
-                            <TouchableOpacity style={styles.kycUploadBox} onPress={() => pickDocument(setAadhaarFront)}>
-                                <FontAwesome name="camera" size={22} color="#7C3AED" />
-                                <Text style={styles.kycUploadText}>Upload</Text>
+                    {/* Multifile Upload Slot */}
+                    <View style={{ width: '100%' }}>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                            {documentImages.map((img, idx) => (
+                                <View key={idx} style={[styles.kycPreviewWrapper, { width: '47%' }]}>
+                                    {img.type?.includes('image') ? (
+                                        <Image source={{ uri: img.uri }} style={styles.kycPreview} resizeMode="cover" />
+                                    ) : (
+                                        <View style={[styles.kycPreview, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>
+                                            <FontAwesome name="file-text-o" size={30} color="#7C3AED" />
+                                            <Text style={{ fontSize: 10, marginTop: 5, paddingHorizontal: 5 }} numberOfLines={1}>{img.name}</Text>
+                                        </View>
+                                    )}
+                                    <TouchableOpacity
+                                        style={styles.kycRemoveBtn}
+                                        onPress={() => setDocumentImages(documentImages.filter((_, i) => i !== idx))}
+                                    >
+                                        <FontAwesome name="times" size={11} color="#fff" />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                            <TouchableOpacity
+                                style={[styles.kycUploadBox, { width: '47%', minHeight: 100 }]}
+                                onPress={() => pickDocument((file) => setDocumentImages([...documentImages, file]))}
+                            >
+                                <FontAwesome name="paperclip" size={22} color="#7C3AED" />
+                                <Text style={styles.kycUploadText}>Attach File</Text>
                             </TouchableOpacity>
-                        )}
-                    </View>
-
-                    {/* Back */}
-                    <View style={styles.kycImageSlot}>
-                        <Text style={styles.kycSlotLabel}>Back side</Text>
-                        {aadhaarBack ? (
-                            <View style={styles.kycPreviewWrapper}>
-                                <Image source={{ uri: aadhaarBack.uri }} style={styles.kycPreview} resizeMode="cover" />
-                                <TouchableOpacity style={styles.kycRemoveBtn} onPress={() => setAadhaarBack(null)}>
-                                    <FontAwesome name="times" size={11} color="#fff" />
-                                </TouchableOpacity>
-                            </View>
-                        ) : (
-                            <TouchableOpacity style={styles.kycUploadBox} onPress={() => pickDocument(setAadhaarBack)}>
-                                <FontAwesome name="camera" size={22} color="#7C3AED" />
-                                <Text style={styles.kycUploadText}>Upload</Text>
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                </View>
-            </View>
-
-            {/* PAN Card */}
-            <View style={styles.kycCard}>
-                <View style={styles.kycCardHeader}>
-                    <View style={styles.kycIconBadge}>
-                        <FontAwesome name="credit-card" size={16} color="#7C3AED" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.kycCardTitle}>PAN Card</Text>
-                        <Text style={styles.kycCardSub}>Upload a clear photo of your PAN card</Text>
-                    </View>
-                    {panImage && (
-                        <View style={styles.kycDoneBadge}>
-                            <FontAwesome name="check" size={11} color="#fff" />
                         </View>
-                    )}
-                </View>
-
-                <InputGroup
-                    label="PAN Number"
-                    placeholder="ABCDE1234F"
-                    value={panNumber}
-                    onChangeText={(v: string) => setPanNumber(v.toUpperCase().slice(0, 10))}
-                    autoCapitalize="characters"
-                />
-
-                {panImage ? (
-                    <View style={[styles.kycPreviewWrapper, { alignSelf: 'center', width: '100%' }]}>
-                        <Image source={{ uri: panImage.uri }} style={[styles.kycPreview, { width: '100%', height: 160 }]} resizeMode="cover" />
-                        <TouchableOpacity style={styles.kycRemoveBtn} onPress={() => setPanImage(null)}>
-                            <FontAwesome name="times" size={11} color="#fff" />
-                        </TouchableOpacity>
                     </View>
-                ) : (
-                    <TouchableOpacity style={[styles.kycUploadBox, { width: '100%', height: 100 }]} onPress={() => pickDocument(setPanImage)}>
-                        <FontAwesome name="camera" size={22} color="#7C3AED" />
-                        <Text style={styles.kycUploadText}>Upload PAN Card Photo</Text>
-                    </TouchableOpacity>
-                )}
+                </View>
             </View>
         </>
     );

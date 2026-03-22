@@ -75,7 +75,7 @@ const ArtistWalletScreen = () => {
 
       // 1. Fetch Wallet
       try {
-        const walletData = await apiCall('/reward/user/wallet', { method: 'GET', token });
+        const walletData = await apiCall('/reward/user/wallet', { method: 'GET', token, silent: true });
         if (walletData && typeof walletData === 'object') {
           setWallet(walletData);
         }
@@ -85,7 +85,7 @@ const ArtistWalletScreen = () => {
 
       // 2. Fetch Ledger (Transactions)
       try {
-        const ledgerData = await apiCall('/reward/user/wallet/ledger', { method: 'GET', token });
+        const ledgerData = await apiCall('/reward/user/wallet/ledger', { method: 'GET', token, silent: true });
         const list = Array.isArray(ledgerData) ? ledgerData : (ledgerData?.ledger || ledgerData?.data || []);
 
         const mapped = list.map((item: any) => ({

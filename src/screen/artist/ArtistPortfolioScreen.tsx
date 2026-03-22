@@ -31,6 +31,7 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
   const [portfolioImages, setPortfolioImages] = useState<any[]>([]);
   const [artistServices, setArtistServices] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [availability, setAvailability] = useState<any[]>([]);
 
   const sliderRef = useRef<FlatList>(null);
 
@@ -43,25 +44,32 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
         return;
       }
 
-      // 1. Fetch Profile
-      const response = await apiCall('/auth/me', { method: 'GET', token });
-      const userObj = response?.user || response;
-      const spObj = userObj?.serviceProvider;
-      setProfile({ ...userObj, ...spObj });
+      // 1. Fetch Provider Profile
+      let providerProfile;
+      try {
+        providerProfile = await apiCall('/service-providers/profile', { method: 'GET', token });
+        setProfile(providerProfile);
+      } catch (e) {
+        console.warn('Provider profile fetch error:', e);
+        // Fallback to /auth/me if provider-specific fetch fails
+        const meResponse = await apiCall('/auth/me', { method: 'GET', token });
+        const userObj = meResponse?.user || meResponse;
+        providerProfile = userObj?.serviceProvider || userObj;
+        setProfile(providerProfile);
+      }
 
-      // 2. Fetch Portfolio
-      if (spObj?.portfolioImages && Array.isArray(spObj.portfolioImages) && spObj.portfolioImages.length > 0) {
-        setPortfolioImages(spObj.portfolioImages);
-      } else {
-        const spId = spObj?.id || userObj?.serviceProviderId;
-        if (spId) {
-          try {
-            const portfolioData = await apiCall(`/service-providers/portfolio/${spId}`, { method: 'GET', token });
-            const imgs = Array.isArray(portfolioData) ? portfolioData : (portfolioData?.images || []);
-            setPortfolioImages(imgs);
-          } catch (e) {
-            console.warn('Portfolio fetch error:', e);
-          }
+      const spId = providerProfile?.id || providerProfile?._id;
+
+      // 2. Fetch Portfolio Images
+      if (providerProfile?.portfolioImages && Array.isArray(providerProfile.portfolioImages) && providerProfile.portfolioImages.length > 0) {
+        setPortfolioImages(providerProfile.portfolioImages);
+      } else if (spId) {
+        try {
+          const portfolioData = await apiCall(`/service-providers/portfolio/${spId}`, { method: 'GET', token });
+          const imgs = Array.isArray(portfolioData) ? portfolioData : (portfolioData?.images || []);
+          setPortfolioImages(imgs);
+        } catch (e) {
+          console.warn('Portfolio fetch error:', e);
         }
       }
 
@@ -74,30 +82,25 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
         console.warn('Services fetch error:', e);
       }
 
-      // 4. Fetch Reviews
-      try {
-        const spId = spObj?.id || userObj?.serviceProviderId;
-        console.log(`[Reviews] Fetching for Provider ID: ${spId}`);
-
-        let reviewsData;
+      // 4. Fetch Availability (Next 7 Days)
+      if (spId) {
         try {
-          // Attempt specific provider reviews first as it's verified working
-          if (spId) {
-            reviewsData = await apiCall(`/reviews/provider/${spId}`, { method: 'GET', token });
-          } else {
-            // Fallback to /my if ID is missing (though /my is currently 404)
-            reviewsData = await apiCall('/reviews/my', { method: 'GET', token });
-          }
+          const availData = await apiCall(`/artist-availability/availability-for-next-seven/${spId}`, { method: 'GET', token });
+          setAvailability(availData || []);
         } catch (e) {
-          console.warn('Reviews primary fetch failed, trying fallback /reviews/my:', e);
-          reviewsData = await apiCall('/reviews/my', { method: 'GET', token });
+          console.warn('Availability fetch error:', e);
         }
+      }
 
-        const rList = Array.isArray(reviewsData) ? reviewsData : (reviewsData?.reviews || reviewsData?.data || []);
-        setReviews(rList);
-        console.log(`[Reviews] Loaded ${rList.length} reviews`);
+      // 5. Fetch Reviews
+      try {
+        if (spId) {
+          const reviewsData = await apiCall(`/reviews/provider/${spId}`, { method: 'GET', token });
+          const rList = Array.isArray(reviewsData) ? reviewsData : (reviewsData?.reviews || reviewsData?.data || []);
+          setReviews(rList);
+        }
       } catch (e) {
-        console.warn('Final Reviews fetch error:', e);
+        console.warn('Reviews fetch error:', e);
       }
 
     } catch (error) {
@@ -274,9 +277,9 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
                 </View>
 
                 <View style={{ gap: 10 }}>
-                  <Text style={styles.certSub}>Experience: {profile?.experience || '5+ Years'}</Text>
-                  <Text style={styles.certSub}>Specialization: {Array.isArray(profile?.specialization) ? profile.specialization.join(', ') : (profile?.specialization || 'Bridal, Party Makeup')}</Text>
-                  <Text style={styles.certSub}>Languages: {Array.isArray(profile?.languagesSpoken) ? profile.languagesSpoken.join(', ') : (profile?.languagesSpoken || 'English, Hindi')}</Text>
+                  <Text style={styles.certSub}>Experience Level: {profile?.experienceLevel || profile?.experience || 'N/A'}</Text>
+                  <Text style={styles.certSub}>Specialization: {Array.isArray(profile?.specialization) ? profile.specialization.join(', ') : (profile?.specialization || 'N/A')}</Text>
+                  <Text style={styles.certSub}>Languages: {Array.isArray(profile?.languagesSpoken) ? profile.languagesSpoken.join(', ') : (profile?.languagesSpoken || 'N/A')}</Text>
                 </View>
               </View>
             </>
@@ -284,20 +287,37 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
 
           {activeTab === 'Availability' && (
             <>
-              {/* Primary Button */}
+              {availability.length > 0 ? (
+                availability.map((item, index) => (
+                  <View key={index} style={styles.availabilityInfoCard}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <View>
+                        <Text style={{ fontSize: 16, fontWeight: '600', color: '#111827' }}>
+                          {new Date(item.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </Text>
+                        <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 4 }}>
+                          {item.startTime} - {item.endTime}
+                        </Text>
+                      </View>
+                      <View style={{ backgroundColor: '#EFE4FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 }}>
+                        <Text style={{ color: '#7B4DFF', fontSize: 12, fontWeight: '600' }}>Available</Text>
+                      </View>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.availabilityInfoCard}>
+                  <Text style={styles.availabilityInfoText}>
+                    Manage your available dates and let customers know when you're free to work
+                  </Text>
+                </View>
+              )}
+
               <TouchableOpacity style={styles.availabilityBtn} onPress={() => navigation.navigate('SetAvailability')}>
                 <Text style={styles.availabilityBtnText}>
-                  Set Your Availability
+                  {availability.length > 0 ? 'Edit Availability' : 'Set Your Availability'}
                 </Text>
               </TouchableOpacity>
-
-              {/* Info Card */}
-              <View style={styles.availabilityInfoCard}>
-                <Text style={styles.availabilityInfoText}>
-                  Manage your available dates and let customers know when
-                  you're free to work
-                </Text>
-              </View>
             </>
           )}
           {activeTab === 'Services' && (

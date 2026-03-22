@@ -8,6 +8,7 @@ import {
   Image,
 } from 'react-native';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
+import { pick, types, isErrorWithCode, errorCodes } from '@react-native-documents/picker';
 import ScreenView from '../../utils/ScreenView';
 
 import { apiCall } from '../../services/api';
@@ -50,6 +51,28 @@ const EditRecentWorksScreen = ({ navigation }: any) => {
     }
   }, [userToken]);
 
+  const pickDocument = async () => {
+    try {
+      const [res] = await pick({
+        type: [types.images, types.pdf],
+      });
+      if (res) {
+        setGalleryImages(prev => [...prev, {
+          uri: res.uri,
+          type: res.type,
+          name: res.name,
+          url: res.uri, // for renderImageSource
+        }]);
+      }
+    } catch (err) {
+      if (isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED) {
+        // ignore
+      } else {
+        console.warn('Picker Error: ', err);
+      }
+    }
+  };
+
   React.useEffect(() => {
     fetchGallery();
   }, [fetchGallery]);
@@ -87,13 +110,13 @@ const EditRecentWorksScreen = ({ navigation }: any) => {
           </View>
 
           {/* UPLOAD BOX */}
-          <TouchableOpacity style={styles.uploadBox}>
+          <TouchableOpacity style={styles.uploadBox} onPress={pickDocument} activeOpacity={0.8}>
             <View style={styles.uploadIcon}>
-              <FontAwesome name="upload" size={20} color="#7B4DFF" />
+              <FontAwesome name="paperclip" size={20} color="#7B4DFF" />
             </View>
-            <Text style={styles.uploadText}>Upload Images</Text>
+            <Text style={styles.uploadText}>Attach Files</Text>
             <Text style={styles.uploadSub}>
-              PNG, JPG up to 10MB each
+              PNG, JPG, PDF up to 10MB each
             </Text>
           </TouchableOpacity>
 
@@ -108,7 +131,10 @@ const EditRecentWorksScreen = ({ navigation }: any) => {
                 <Image source={renderImageSource(img)} style={styles.galleryImage} />
 
                 {/* delete overlay (optional) */}
-                <TouchableOpacity style={styles.deleteBtn}>
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => setGalleryImages(galleryImages.filter((_, i) => i !== index))}
+                >
                   <FontAwesome name="times" size={12} color="#fff" />
                 </TouchableOpacity>
               </View>

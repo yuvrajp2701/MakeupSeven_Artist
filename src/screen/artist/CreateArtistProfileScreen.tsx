@@ -8,7 +8,7 @@ import {
   BackHandler,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   launchImageLibrary,
   launchCamera,
@@ -38,9 +38,11 @@ const styles = createArtistStyles;
 
 const CreateArtistProfileScreen = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const params = route.params || {};
 
   // ── Stepper ────────────────────────────────────────────────
-  const [step, setStep] = useState<0 | 1 | 2>(0);
+  const [step, setStep] = useState<0 | 1 | 2>(params?.initialStep || 0);
   const [status, setStatus] = useState<
     'IDLE' | 'PENDING' | 'APPROVED' | 'REJECTED'
   >('IDLE');
@@ -351,6 +353,11 @@ const CreateArtistProfileScreen = () => {
         setStatus('PENDING'); // Set to pending after submission
         setShowUpdateSuccess(true); // Show success banner
         setVerificationModalVisible(true);
+        
+        // Navigate to dashboard after successful submission
+        setTimeout(() => {
+          navigation.navigate('Artist');
+        }, 2000); // Wait 2 seconds to show success message
       } catch (error: any) {
         console.error('[Profile] Submission failed:', error.message);
         Alert.alert(

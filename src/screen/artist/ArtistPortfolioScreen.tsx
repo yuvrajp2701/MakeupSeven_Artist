@@ -347,7 +347,7 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
 
               <TouchableOpacity
                 style={styles.editServicesBtn}
-                onPress={() => navigation.navigate('EditService')}
+                onPress={() => navigation.navigate('profile', { initialStep: 2 })}
               >
                 <Text style={styles.editServicesText}>Add New Service</Text>
               </TouchableOpacity>

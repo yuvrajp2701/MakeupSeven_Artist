@@ -21,6 +21,9 @@ const SetAvailabilityScreen = ({ navigation }: any) => {
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('21:00');
+  const [showTimePicker, setShowTimePicker] = useState<'start' | 'end' | null>(null);
   const { userToken } = useAuth();
 
   // Helper to get dates for current selected month
@@ -45,6 +48,29 @@ const SetAvailabilityScreen = ({ navigation }: any) => {
     );
   };
 
+  // Generate time options from 00:00 to 23:30 in 30-minute intervals
+  const generateTimeOptions = () => {
+    const times = [];
+    for (let hour = 0; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        times.push(time);
+      }
+    }
+    return times;
+  };
+
+  const timeOptions = generateTimeOptions();
+
+  const handleTimeSelect = (time: string) => {
+    if (showTimePicker === 'start') {
+      setStartTime(time);
+    } else if (showTimePicker === 'end') {
+      setEndTime(time);
+    }
+    setShowTimePicker(null);
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -61,8 +87,8 @@ const SetAvailabilityScreen = ({ navigation }: any) => {
 
       const availabilityData = availableDates.map(date => ({
         date,
-        startTime: "09:00",
-        endTime: "21:00"
+        startTime,
+        endTime
       }));
 
       await apiCall('/artist-availability/artist', {
@@ -173,6 +199,35 @@ const SetAvailabilityScreen = ({ navigation }: any) => {
             </View>
           </View>
 
+          {/* TIME SELECTION */}
+          <View style={styles.timeCard}>
+            <Text style={styles.timeTitle}>Working Hours</Text>
+            
+            <View style={styles.timeRow}>
+              <View style={styles.timeItem}>
+                <Text style={styles.timeLabel}>Start Time</Text>
+                <TouchableOpacity 
+                  style={styles.timeButton}
+                  onPress={() => setShowTimePicker('start')}
+                >
+                  <Text style={styles.timeValue}>{startTime}</Text>
+                  <FontAwesome name="clock-o" size={16} color="#7B4DFF" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.timeItem}>
+                <Text style={styles.timeLabel}>End Time</Text>
+                <TouchableOpacity 
+                  style={styles.timeButton}
+                  onPress={() => setShowTimePicker('end')}
+                >
+                  <Text style={styles.timeValue}>{endTime}</Text>
+                  <FontAwesome name="clock-o" size={16} color="#7B4DFF" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
           {/* LEGEND CARD */}
           <View style={styles.legendCard}>
             <Text style={styles.legendTitle}>Legend</Text>
@@ -207,6 +262,34 @@ const SetAvailabilityScreen = ({ navigation }: any) => {
 
         </View>
       </ScrollView>
+
+      {/* TIME PICKER MODAL */}
+      {showTimePicker && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Select {showTimePicker === 'start' ? 'Start' : 'End'} Time
+              </Text>
+              <TouchableOpacity onPress={() => setShowTimePicker(null)}>
+                <FontAwesome name="times" size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.timeList} showsVerticalScrollIndicator={false}>
+              {timeOptions.map((time) => (
+                <TouchableOpacity
+                  key={time}
+                  style={styles.timeOption}
+                  onPress={() => handleTimeSelect(time)}
+                >
+                  <Text style={styles.timeOptionText}>{time}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      )}
     </ScreenView>
   );
 };
@@ -346,4 +429,93 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+
+  /* TIME SELECTION STYLES */
+  timeCard: {
+    marginTop: 16,
+    marginHorizontal: 20,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    elevation: 2,
+  },
+  timeTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 16,
+    color: '#111827',
+  },
+  timeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  timeItem: {
+    flex: 1,
+  },
+  timeLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  timeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  timeValue: {
+    fontSize: 16,
+    color: '#111827',
+    fontWeight: '500',
+  },
+
+  /* MODAL STYLES */
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: '80%',
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  timeList: {
+    maxHeight: 300,
+  },
+  timeOption: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  timeOptionText: {
+    fontSize: 16,
+    color: '#111827',
+    textAlign: 'center',
+  },
 });

@@ -33,6 +33,8 @@ import ServicesStep from '../../components/artist/ServicesStep';
 import { apiCall } from '../../services/api';
 import { getToken } from '../../services/auth';
 import createArtistStyles from '../../components/artist/styles/createArtistStyles';
+import { fetchCities, getCityNames } from '../../services/cityService';
+import { fetchCategories, getCategoryNames, getCategoryIdByName } from '../../services/categoryService';
 
 const styles = createArtistStyles;
 
@@ -69,6 +71,23 @@ const CreateArtistProfileScreen = () => {
   const [category, setCategory] = useState('');
   const [experience, setExperience] = useState('');
   const [specialization, setSpecialization] = useState('');
+  const [portfolioImages, setPortfolioImages] = useState<any[]>([]);
+
+  // ── Services ───────────────────────────────────────────────
+  const [serviceCategory, setServiceCategory] = useState('');
+  const [serviceName, setServiceName] = useState('');
+  const [serviceDesc, setServiceDesc] = useState('');
+  const [serviceDuration, setServiceDuration] = useState('');
+  const [servicePrice, setServicePrice] = useState('');
+  const [serviceDiscountPrice, setServiceDiscountPrice] = useState('');
+  const [whoShouldTake, setWhoShouldTake] = useState('');
+  const [whoShouldAvoid, setWhoShouldAvoid] = useState('');
+  const [servicePrimaryImages, setServicePrimaryImages] = useState<any[]>([]);
+  const [serviceOtherImages, setServiceOtherImages] = useState<any[]>([]);
+
+  // ── Dropdown Options ───────────────────────────────────────
+  const [cityOptions, setCityOptions] = useState<string[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
 
   // ── KYC ───────────────────────────────────────────────────
   const [documentNumber, setDocumentNumber] = useState('');
@@ -208,7 +227,8 @@ const CreateArtistProfileScreen = () => {
           token,
         });
         if (providerRes) {
-          setStatus(providerRes.status || 'IDLE');
+          const currentStatus = providerRes.approvalStatus || providerRes.status || 'IDLE';
+          setStatus(currentStatus);
           // Optional: Pre-fill other fields if available
           if (providerRes.documentNumber)
             setDocumentNumber(providerRes.documentNumber);
@@ -219,8 +239,22 @@ const CreateArtistProfileScreen = () => {
     }
   };
 
+  const fetchDropdownData = async () => {
+    try {
+      const [cities, categories] = await Promise.all([
+        fetchCities(),
+        fetchCategories(),
+      ]);
+      setCityOptions(cities);
+      setCategoryOptions(categories.map(c => c.name));
+    } catch (e) {
+      console.warn('Failed to fetch dropdown data:', e);
+    }
+  };
+
   React.useEffect(() => {
     fetchProfileAndStatus();
+    fetchDropdownData();
   }, []);
 
   React.useEffect(() => {
@@ -282,7 +316,8 @@ const CreateArtistProfileScreen = () => {
 
       // Category IDs
       if (category) {
-        formData.append('categoryIds', JSON.stringify([category]));
+        const catId = getCategoryIdByName(category);
+        formData.append('categoryIds', JSON.stringify([catId]));
       }
 
       // Languages
@@ -389,7 +424,7 @@ const CreateArtistProfileScreen = () => {
       <ProfileStepHeader
         step={step}
         onStepChange={setStep}
-        isApproved={isApproved}
+        status={status}
       />
 
       <ScrollView
@@ -531,18 +566,47 @@ const CreateArtistProfileScreen = () => {
             setDocumentImages={setDocumentImages}
             pickDocument={pickDocument}
             openDropdown={openDropdown}
+            cityOptions={cityOptions}
+            categoryOptions={categoryOptions}
             profilePhoto={profilePhoto}
             setProfilePhoto={setProfilePhoto}
             pickImage={pickImage}
           />
         )}
 
-        {step === 1 && <PortfolioStep pickDocument={pickDocument} />}
+        {step === 1 && (
+          <PortfolioStep 
+            portfolioImages={portfolioImages}
+            setPortfolioImages={setPortfolioImages}
+            pickDocument={pickDocument} 
+          />
+        )}
 
         {step === 2 && (
           <ServicesStep
+            serviceCategory={serviceCategory}
+            setServiceCategory={setServiceCategory}
+            serviceName={serviceName}
+            setServiceName={setServiceName}
+            serviceDesc={serviceDesc}
+            setServiceDesc={setServiceDesc}
+            serviceDuration={serviceDuration}
+            setServiceDuration={setServiceDuration}
+            servicePrice={servicePrice}
+            setServicePrice={setServicePrice}
+            serviceDiscountPrice={serviceDiscountPrice}
+            setServiceDiscountPrice={setServiceDiscountPrice}
+            whoShouldTake={whoShouldTake}
+            setWhoShouldTake={setWhoShouldTake}
+            whoShouldAvoid={whoShouldAvoid}
+            setWhoShouldAvoid={setWhoShouldAvoid}
+            servicePrimaryImages={servicePrimaryImages}
+            setServicePrimaryImages={setServicePrimaryImages}
+            serviceOtherImages={serviceOtherImages}
+            setServiceOtherImages={setServiceOtherImages}
             openDropdown={openDropdown}
             pickDocument={pickDocument}
+            categoryOptions={categoryOptions}
           />
         )}
 

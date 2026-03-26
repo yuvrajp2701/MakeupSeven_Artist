@@ -44,7 +44,7 @@ const PortfolioStep: React.FC<Props> = ({ portfolioImages, setPortfolioImages, p
 
             <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>Your portfolio</Text>
             <View style={styles.imageGrid}>
-                {portfolioImages.map((img, index) => (
+                {portfolioImages?.map((img, index) => (
                     <View key={index} style={styles.gridImageWrapper}>
                         {typeof img === 'number' || (typeof img === 'string') || img.type?.includes('image') || img.uri || img.url ? (
                             <Image 

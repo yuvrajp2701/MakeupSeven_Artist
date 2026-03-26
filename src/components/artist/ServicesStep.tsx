@@ -23,24 +23,50 @@ const INITIAL_OTHER = [
 ];
 
 interface Props {
+    serviceCategory: string;
+    setServiceCategory: (v: string) => void;
+    serviceName: string;
+    setServiceName: (v: string) => void;
+    serviceDesc: string;
+    setServiceDesc: (v: string) => void;
+    serviceDuration: string;
+    setServiceDuration: (v: string) => void;
+    servicePrice: string;
+    setServicePrice: (v: string) => void;
+    serviceDiscountPrice: string;
+    setServiceDiscountPrice: (v: string) => void;
+    whoShouldTake: string;
+    setWhoShouldTake: (v: string) => void;
+    whoShouldAvoid: string;
+    setWhoShouldAvoid: (v: string) => void;
+    servicePrimaryImages: any[];
+    setServicePrimaryImages: (v: any[]) => void;
+    serviceOtherImages: any[];
+    setServiceOtherImages: (v: any[]) => void;
     openDropdown: (
         options: string[],
         setValue: (val: string) => void,
         layout: { x: number; y: number; width: number; height: number }
     ) => void;
     pickDocument?: (onFilePicked: (file: any) => void) => void;
+    categoryOptions: string[];
 }
 
-const ServicesStep: React.FC<Props> = ({ openDropdown, pickDocument }) => {
+const ServicesStep: React.FC<Props> = ({
+    serviceCategory, setServiceCategory,
+    serviceName, setServiceName,
+    serviceDesc, setServiceDesc,
+    serviceDuration, setServiceDuration,
+    servicePrice, setServicePrice,
+    serviceDiscountPrice, setServiceDiscountPrice,
+    whoShouldTake, setWhoShouldTake,
+    whoShouldAvoid, setWhoShouldAvoid,
+    servicePrimaryImages, setServicePrimaryImages,
+    serviceOtherImages, setServiceOtherImages,
+    openDropdown, pickDocument,
+    categoryOptions,
+}) => {
     const [serviceExpanded, setServiceExpanded] = useState(true);
-    const [serviceCategory, setServiceCategory] = useState('');
-    const [serviceName, setServiceName] = useState('');
-    const [serviceDesc, setServiceDesc] = useState('');
-    const [serviceDuration, setServiceDuration] = useState('');
-    const [servicePrice, setServicePrice] = useState('');
-    const [serviceDiscountPrice, setServiceDiscountPrice] = useState('');
-    const [whoShouldTake, setWhoShouldTake] = useState('');
-    const [whoShouldAvoid, setWhoShouldAvoid] = useState('');
     const [extraInfoEnabled, setExtraInfoEnabled] = useState(true);
 
     const [exclusiveEssentials, setExclusiveEssentials] = useState<Array<{ image: any; title: string; type?: string }>>([]);
@@ -51,9 +77,6 @@ const ServicesStep: React.FC<Props> = ({ openDropdown, pickDocument }) => {
     const [procedureModalVisible, setProcedureModalVisible] = useState(false);
     const [procedures, setProcedures] = useState([{ title: '', description: '', expanded: true }]);
     const [proceduresSaved, setProceduresSaved] = useState(false);
-
-    const [servicePrimaryImages, setServicePrimaryImages] = useState<any[]>(INITIAL_PRIMARY);
-    const [serviceOtherImages, setServiceOtherImages] = useState<any[]>(INITIAL_OTHER);
 
     const handleUploadPrimary = () => {
         if (pickDocument) {
@@ -91,7 +114,7 @@ const ServicesStep: React.FC<Props> = ({ openDropdown, pickDocument }) => {
                 {serviceExpanded && (
                     <View style={styles.serviceBody}>
                         <DropdownField label="Service Category" value={serviceCategory} placeholder="Select category"
-                            onPress={(layout: any) => openDropdown(['Makeup', 'Hair Styling', 'Nail Art', 'Mehendi'], setServiceCategory, layout)} />
+                            onPress={(layout: any) => openDropdown(categoryOptions, setServiceCategory, layout)} />
 
                         <InputGroup label="Service Name" placeholder="Bridal Makeup" value={serviceName} onChangeText={setServiceName} />
                         <InputGroup label="Description" placeholder="Complete bridal look with trial" value={serviceDesc} onChangeText={setServiceDesc} />
@@ -121,12 +144,16 @@ const ServicesStep: React.FC<Props> = ({ openDropdown, pickDocument }) => {
                         <View style={styles.primaryImagesList}>
                             {servicePrimaryImages.map((img, index) => (
                                 <View key={index} style={styles.primaryImageWrapper}>
-                                    {typeof img === 'number' || img.type?.includes('image') ? (
-                                        <Image source={typeof img === 'number' ? img : { uri: img.uri }} style={styles.primaryImageItem} resizeMode="cover" />
+                                    {typeof img === 'number' || (typeof img === 'string') || img.type?.includes('image') || img.uri || img.url ? (
+                                        <Image 
+                                            source={typeof img === 'number' ? img : { uri: typeof img === 'string' ? img : (img.uri || img.url) }} 
+                                            style={styles.primaryImageItem} 
+                                            resizeMode="cover" 
+                                        />
                                     ) : (
                                         <View style={[styles.primaryImageItem, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>
                                             <FontAwesome name="file-text-o" size={40} color="#7C3AED" />
-                                            <Text style={{ fontSize: 12, marginTop: 8 }}>{img.name}</Text>
+                                            <Text style={{ fontSize: 12, marginTop: 8 }}>{img.name || 'File'}</Text>
                                         </View>
                                     )}
                                     <TouchableOpacity style={styles.removeBtn} onPress={() => {
@@ -155,12 +182,16 @@ const ServicesStep: React.FC<Props> = ({ openDropdown, pickDocument }) => {
                         <View style={styles.imageGrid}>
                             {serviceOtherImages.map((img, index) => (
                                 <View key={index} style={styles.gridImageWrapper}>
-                                    {typeof img === 'number' || img.type?.includes('image') ? (
-                                        <Image source={typeof img === 'number' ? img : { uri: img.uri }} style={styles.gridImage} resizeMode="cover" />
+                                    {typeof img === 'number' || (typeof img === 'string') || img.type?.includes('image') || img.uri || img.url ? (
+                                        <Image 
+                                            source={typeof img === 'number' ? img : { uri: typeof img === 'string' ? img : (img.uri || img.url) }} 
+                                            style={styles.gridImage} 
+                                            resizeMode="cover" 
+                                        />
                                     ) : (
                                         <View style={[styles.gridImage, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>
                                             <FontAwesome name="file-text-o" size={30} color="#7C3AED" />
-                                            <Text style={{ fontSize: 9, marginTop: 4, textAlign: 'center', paddingHorizontal: 4 }} numberOfLines={1}>{img.name}</Text>
+                                            <Text style={{ fontSize: 9, marginTop: 4, textAlign: 'center', paddingHorizontal: 4 }} numberOfLines={1}>{img.name || 'File'}</Text>
                                         </View>
                                     )}
                                     <TouchableOpacity style={styles.removeBtnSmall} onPress={() => {

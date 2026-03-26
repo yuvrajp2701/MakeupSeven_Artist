@@ -12,13 +12,36 @@ const BookingDetailsScreen = () => {
   const { params }: any = useRoute();
 
   // 🔥 booking state
-  const [isAccepted, setIsAccepted] = useState(params?.status === 'APPROVED' || params?.status === 'STARTED');
+  const bookingId = params._id || params.id || params.bookingId;
+  const [bookingData, setBookingData] = useState<any>(params || {});
+  const [isAccepted, setIsAccepted] = useState(bookingData?.status === 'APPROVED' || bookingData?.status === 'STARTED');
   const [loading, setLoading] = useState(false);
   const { userToken } = useAuth();
-  const bookingId = params._id || params.id || params.bookingId;
 
   // Detect dummy bookings so we skip real API calls
   const isDummy = typeof bookingId === 'string' && bookingId.startsWith('dummy-');
+
+  React.useEffect(() => {
+    if (!bookingId || isDummy) return;
+    const fetchBookingDetails = async () => {
+      try {
+        const token = userToken || await getToken();
+        if (!token) return;
+        setLoading(true);
+        const response = await apiCall(`/booking/booking/${bookingId}`, { method: 'GET', token });
+        const data = response?.booking || response?.data || response;
+        if (data) {
+          setBookingData(data);
+          setIsAccepted(data.status === 'APPROVED' || data.status === 'STARTED');
+        }
+      } catch (error) {
+        console.warn('Error fetching booking details:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBookingDetails();
+  }, [bookingId, userToken, isDummy]);
 
   const handleStatusUpdate = async (newStatus: string) => {
     // ── Dummy mode: instant local state update, no network ──
@@ -45,19 +68,32 @@ const BookingDetailsScreen = () => {
 
       console.log(`[StatusUpdate] Attempting ${newStatus} for ID: ${bookingId}`);
 
-      let response;
-      // We've verified /approve is the correct endpoint. /status returns 404.
-      const endpoint = newStatus === 'APPROVED' ? 'approve' : newStatus.toLowerCase();
+      let endpoint = '';
+      if (newStatus === 'APPROVED') endpoint = 'approve';
+      else if (newStatus === 'REJECTED') endpoint = 'reject';
+      else if (newStatus === 'CANCELLED') endpoint = 'cancel-by-artist';
+      else endpoint = newStatus.toLowerCase();
 
       try {
-        response = await apiCall(`/booking/${bookingId}/${endpoint}`, {
+        console.log(`\n================ API REQUEST ================`);
+        console.log(`Endpoint: PUT /booking/${bookingId}/${endpoint}`);
+        console.log(`Current Status: ${bookingData?.status} -> New Target: ${newStatus}`);
+        console.log(`=============================================\n`);
+
+        const response = await apiCall(`/booking/${bookingId}/${endpoint}`, {
           method: 'PUT',
           token,
-          body: { newStatus } // Sending body just in case backend requires it for logic
+          body: {} // Send empty body as per typical PUT requests unless OTP required
         });
+
+        console.log(`\n================ API RESPONSE ================`);
+        console.log(`Success! Updated booking to ${newStatus}`);
+        console.log(`Response Data:`, JSON.stringify(response, null, 2));
+        console.log(`==============================================\n`);
 
         if (newStatus === 'APPROVED' || newStatus === 'STARTED') {
           setIsAccepted(true);
+          setBookingData((prev: any) => ({ ...prev, status: newStatus }));
         } else if (newStatus === 'REJECTED' || newStatus === 'CANCELLED') {
           navigation.goBack();
         }
@@ -91,7 +127,7 @@ const BookingDetailsScreen = () => {
         {/* STATUS */}
         <View style={styles.statusPill}>
           <Text style={styles.statusText}>
-            {isAccepted ? 'Confirmed' : 'Awaiting Confirmation'}
+            {bookingData?.status || (isAccepted ? 'Confirmed' : 'Awaiting Confirmation')}
           </Text>
         </View>
 
@@ -103,18 +139,18 @@ const BookingDetailsScreen = () => {
 
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
-                  {params?.name?.charAt(0) ?? 'S'}
+                  {bookingData?.name?.charAt(0) || bookingData?.customerName?.charAt(0) || 'U'}
                 </Text>
               </View>
             </View>
 
-            <InfoRow icon="user" label="Customer" value={params.name} />
-            <InfoRow icon="calendar" label="Date" value={params.date} />
-            <InfoRow icon="clock-o" label="Time" value={params.time} />
+            <InfoRow icon="user" label="Customer" value={bookingData?.name || bookingData?.customerName || 'Customer'} />
+            <InfoRow icon="calendar" label="Date" value={bookingData?.date || (bookingData?.bookingDate ? new Date(bookingData.bookingDate).toLocaleDateString() : 'N/A')} />
+            <InfoRow icon="clock-o" label="Time" value={bookingData?.time || bookingData?.startTime || 'N/A'} />
             <InfoRow
               icon="map-marker"
               label="Location"
-              value={params.address}
+              value={bookingData?.address?.street || bookingData?.address || 'N/A'}
             />
 
             {/* AMOUNT */}
@@ -125,7 +161,7 @@ const BookingDetailsScreen = () => {
 
               <View style={styles.amountTextContainer}>
                 <Text style={styles.amountLabel}>Amount</Text>
-                <Text style={styles.amountValue}>{params.price}</Text>
+                <Text style={styles.amountValue}>{bookingData?.price || bookingData?.totalAmount || '0'}</Text>
               </View>
             </View>
           </View>
@@ -170,19 +206,50 @@ const BookingDetailsScreen = () => {
               </View>
 
               {/* START SERVICE */}
-              <TouchableOpacity
-                style={[styles.startServiceBtn, loading && { opacity: 0.7 }]}
-                onPress={() => {
-                  navigation.navigate('CustomerOtp', {
-                    ...params,
-                    bookingId: bookingId,
-                    mode: 'start'
-                  });
-                }}
-                disabled={loading}
-              >
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.startServiceText}>Start Service</Text>}
-              </TouchableOpacity>
+              {bookingData?.status !== 'STARTED' && bookingData?.status !== 'COMPLETED' && (
+                <TouchableOpacity
+                  style={[styles.startServiceBtn, loading && { opacity: 0.7 }]}
+                  onPress={() => {
+                    navigation.navigate('CustomerOtp', {
+                      ...bookingData,
+                      bookingId: bookingId,
+                      mode: 'start'
+                    });
+                  }}
+                  disabled={loading}
+                >
+                  {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.startServiceText}>Start Service</Text>}
+                </TouchableOpacity>
+              )}
+
+              {/* CANCEL BOOKING (Only after accept but before start) */}
+              {bookingData?.status === 'APPROVED' && (
+                <TouchableOpacity
+                  style={[styles.declineBtn, loading && { opacity: 0.7 }]}
+                  onPress={() => handleStatusUpdate('CANCELLED')}
+                  activeOpacity={0.9}
+                  disabled={loading}
+                >
+                  <Text style={styles.declineText}>Cancel Booking</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* COMPLETE SERVICE */}
+              {bookingData?.status === 'STARTED' && (
+                 <TouchableOpacity
+                   style={[styles.startServiceBtn, loading && { opacity: 0.7 }]}
+                   onPress={() => {
+                     navigation.navigate('CustomerOtp', {
+                       ...bookingData,
+                       bookingId: bookingId,
+                       mode: 'complete'
+                     });
+                   }}
+                   disabled={loading}
+                 >
+                   {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.startServiceText}>Complete Service</Text>}
+                 </TouchableOpacity>
+              )}
 
             </>
           )}

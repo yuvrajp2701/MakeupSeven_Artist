@@ -52,6 +52,10 @@ interface Props {
     setSpecialization: (v: string) => void;
     setCity: (v: string) => void;
 
+    // Dynamic dropdown data
+    cityOptions: string[];
+    categoryOptions: string[];
+
     // KYC
     documentNumber: string;
     setDocumentNumber: (v: string) => void;
@@ -94,6 +98,8 @@ const ProfileInfoStep: React.FC<Props> = ({
     profilePhoto, setProfilePhoto,
     pickImage,
     openDropdown,
+    cityOptions,
+    categoryOptions,
 }) => {
     return (
         <>
@@ -136,7 +142,7 @@ const ProfileInfoStep: React.FC<Props> = ({
             <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Location & Services Area</Text>
 
             <DropdownField label="City" value={city} placeholder="Select your city"
-                onPress={(layout: any) => openDropdown(['Mumbai', 'Delhi', 'Bangalore', 'Pune'], setCity, layout)} />
+                onPress={(layout: any) => openDropdown(cityOptions, setCity, layout)} />
 
             <InputGroup label="Area / locality" placeholder="Enter your area or locality" value={area} onChangeText={setArea} />
             <InputGroup
@@ -241,7 +247,7 @@ const ProfileInfoStep: React.FC<Props> = ({
             <Text style={[styles.sectionHeader, { marginTop: 24 }]}>Professional overview</Text>
 
             <DropdownField label="Select your primary category" value={category} placeholder="Select primary category"
-                onPress={(layout: any) => openDropdown(['Makeup', 'Hair Styling', 'Nail Art', 'Mehendi'], setCategory, layout)} />
+                onPress={(layout: any) => openDropdown(categoryOptions, setCategory, layout)} />
 
             <DropdownField label="Experience" value={experience} placeholder="Select your experience level"
                 onPress={(layout: any) => openDropdown(['Fresher (0-1 y)', 'Mid-level (2-5 y)', 'Senior (5+ y)'], setExperience, layout)} />

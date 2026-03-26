@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -10,6 +10,8 @@ import {
     FlatList,
     ActivityIndicator,
     RefreshControl,
+    Animated,
+    Easing,
 } from 'react-native';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import { useNavigation } from '@react-navigation/native';
@@ -67,6 +69,17 @@ const CoursesScreen = () => {
     const [loading, setLoading] = useState(false);
     const [stats, setStats] = useState({ done: 1, certified: 1, total: 4 });
 
+    // Upcoming Feature overlay animation
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, { toValue: 1.12, duration: 900, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+                Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+            ])
+        ).start();
+    }, []);
+
     useEffect(() => {
         fetchCourses();
     }, []);
@@ -77,7 +90,7 @@ const CoursesScreen = () => {
             const token = userToken || (await getToken()) || undefined;
 
             // Note: Placeholder endpoint for now
-            const response = await apiCall('/academy/courses', { method: 'GET', token });
+            const response = await apiCall('/academy/courses', { method: 'GET', token, silent: true });
 
             if (response && (Array.isArray(response) || response.data || response.courses)) {
                 const fetchedList = Array.isArray(response) ? response : (response.courses || response.data || []);
@@ -162,6 +175,7 @@ const CoursesScreen = () => {
     );
 
     return (
+        <View style={{ flex: 1 }}>
         <View style={styles.screen}>
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Professional Courses</Text>
@@ -223,6 +237,46 @@ const CoursesScreen = () => {
 
                 <View style={{ height: 80 }} />
             </ScrollView>
+        </View>
+
+            {/* ──── Upcoming Feature Overlay ──── */}
+            <View style={styles.upcomingOverlay} pointerEvents="box-none">
+                <LinearGradient
+                    colors={['rgba(15,10,40,0.82)', 'rgba(30,15,70,0.96)']}
+                    style={styles.upcomingGradient}
+                >
+                    {/* Decorative glow circles */}
+                    <View style={styles.glowCircle1} />
+                    <View style={styles.glowCircle2} />
+
+                    {/* Badge */}
+                    <View style={styles.upcomingBadge}>
+                        <Text style={styles.upcomingBadgeText}>🚀  COMING SOON</Text>
+                    </View>
+
+                    {/* Animated Icon */}
+                    <Animated.View style={[styles.upcomingIconCircle, { transform: [{ scale: pulseAnim }] }]}>
+                        <LinearGradient
+                            colors={['#9B59FF', '#6C2FD9']}
+                            style={styles.upcomingIconGradient}
+                        >
+                            <Text style={{ fontSize: 44 }}>🎓</Text>
+                        </LinearGradient>
+                    </Animated.View>
+
+                    <Text style={styles.upcomingTitle}>Courses</Text>
+                    <Text style={styles.upcomingSubtitle}>
+                        Professional makeup courses are coming.{`\n`}Learn from industry experts at your own pace.
+                    </Text>
+
+                    {/* Feature pills */}
+                    <View style={styles.featurePillsRow}>
+                        <View style={styles.featurePill}><Text style={styles.featurePillText}>🎥  Video Lessons</Text></View>
+                        <View style={styles.featurePill}><Text style={styles.featurePillText}>🎖️  Certificates</Text></View>
+                        <View style={styles.featurePill}><Text style={styles.featurePillText}>⭐  Expert Tutors</Text></View>
+                    </View>
+                </LinearGradient>
+            </View>
         </View>
     );
 };
@@ -436,6 +490,106 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         fontSize: 13,
         marginLeft: 6,
+    },
+
+    // ── Upcoming Feature Overlay ──
+    upcomingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 999,
+        elevation: 999,
+    },
+    upcomingGradient: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 32,
+        overflow: 'hidden',
+    },
+    glowCircle1: {
+        position: 'absolute',
+        width: 280,
+        height: 280,
+        borderRadius: 140,
+        backgroundColor: 'rgba(139, 92, 246, 0.18)',
+        top: -60,
+        right: -80,
+    },
+    glowCircle2: {
+        position: 'absolute',
+        width: 200,
+        height: 200,
+        borderRadius: 100,
+        backgroundColor: 'rgba(99, 47, 217, 0.15)',
+        bottom: 60,
+        left: -60,
+    },
+    upcomingBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(155, 89, 255, 0.35)',
+        borderWidth: 1,
+        borderColor: 'rgba(155, 89, 255, 0.5)',
+        borderRadius: 20,
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        marginBottom: 28,
+    },
+    upcomingBadgeText: {
+        color: '#D8B4FE',
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 1.5,
+    },
+    upcomingIconCircle: {
+        marginBottom: 24,
+        shadowColor: '#9B59FF',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.6,
+        shadowRadius: 20,
+        elevation: 12,
+    },
+    upcomingIconGradient: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    upcomingTitle: {
+        fontSize: 34,
+        fontWeight: '800',
+        color: '#fff',
+        letterSpacing: 0.5,
+        marginBottom: 14,
+        textAlign: 'center',
+    },
+    upcomingSubtitle: {
+        fontSize: 15,
+        color: 'rgba(255,255,255,0.65)',
+        textAlign: 'center',
+        lineHeight: 24,
+        marginBottom: 36,
+    },
+    featurePillsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        gap: 10,
+    },
+    featurePill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        borderWidth: 1,
+        borderColor: 'rgba(179, 136, 255, 0.3)',
+        borderRadius: 20,
+        paddingHorizontal: 14,
+        paddingVertical: 7,
+    },
+    featurePillText: {
+        color: '#C4B5FD',
+        fontSize: 12,
+        fontWeight: '500',
     },
 });
 

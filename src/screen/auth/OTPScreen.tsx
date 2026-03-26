@@ -126,8 +126,19 @@ const OTPScreen = ({ navigation, route }: any) => {
         }
 
         // ── Step 2: If verify-otp gave us an ARTIST token, done ───────────
-        if (verifyToken && verifiedUserRole === 'ARTIST') {
+        if (verifyToken && (verifiedUserRole === 'ARTIST' || verifiedUserRole === 'SERVICE_PROVIDER')) {
             console.log('[Auth] Got ARTIST token directly from verify-otp ✅');
+            try {
+                // Update name in profile as requested
+                await apiCall('/service-providers/profile', {
+                    method: 'PATCH',
+                    token: verifyToken,
+                    body: { name: name }
+                });
+                console.log('[Auth] Profile name updated successfully');
+            } catch (e: any) {
+                console.warn('[Auth] Profile name update failed:', e.message);
+            }
             await login(verifyToken);
             return;
         }
@@ -161,6 +172,17 @@ const OTPScreen = ({ navigation, route }: any) => {
             const token = loginRes?.token || loginRes?.data?.token;
             if (token) {
                 console.log('[Auth] Artist login success ✅');
+                try {
+                    // Update name in profile as requested
+                    await apiCall('/service-providers/profile', {
+                        method: 'PATCH',
+                        token: token,
+                        body: { name: name }
+                    });
+                    console.log('[Auth] Profile name updated successfully after login');
+                } catch (e: any) {
+                    console.warn('[Auth] Profile name update failed after login:', e.message);
+                }
                 await login(token);
                 return;
             }
@@ -178,6 +200,17 @@ const OTPScreen = ({ navigation, route }: any) => {
             const token = mobileLoginRes?.token || mobileLoginRes?.data?.token;
             if (token) {
                 console.log('[Auth] Mobile login success ✅');
+                try {
+                    // Update name in profile as requested
+                    await apiCall('/service-providers/profile', {
+                        method: 'PATCH',
+                        token: token,
+                        body: { name: name }
+                    });
+                    console.log('[Auth] Profile name updated successfully after mobile login');
+                } catch (e: any) {
+                    console.warn('[Auth] Profile name update failed after mobile login:', e.message);
+                }
                 await login(token);
                 return;
             }
@@ -287,6 +320,12 @@ const OTPScreen = ({ navigation, route }: any) => {
                         />
                     ))}
                 </View>
+
+                {/* Testing Hint */}
+                <Text style={{ textAlign: 'center', color: Colors.primary, marginBottom: 15, fontSize: 13 }}>
+                    💡 For testing purposes, please use the OTP: 1234
+                </Text>
+
 
                 {/* Timer & Resend */}
                 <View style={styles.timerRow}>

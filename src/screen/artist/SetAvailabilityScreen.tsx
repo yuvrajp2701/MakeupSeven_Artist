@@ -39,7 +39,18 @@ const SetAvailabilityScreen = ({ navigation }: any) => {
     return dates;
   };
 
+  const isPastDate = (year: number, month: number, day: number) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const d = new Date(year, month, day);
+    return d < today;
+  };
+
   const toggleDate = (day: number) => {
+    if (isPastDate(selectedMonth.getFullYear(), selectedMonth.getMonth(), day)) {
+      Alert.alert("Invalid Date", "You cannot set availability for a past date.");
+      return;
+    }
     const dateKey = `${selectedMonth.getFullYear()}-${(selectedMonth.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
     setAvailableDates(prev =>
       prev.includes(dateKey)
@@ -91,17 +102,46 @@ const SetAvailabilityScreen = ({ navigation }: any) => {
         endTime
       }));
 
-      await apiCall('/artist-availability/artist', {
+      const response = await apiCall('/artist-availability/artist', {
         method: 'POST',
         token,
         body: { availability: availabilityData }
-      });
+      }) as any;
+
+      // Handle 200 OK but with skipped items
+      if (response && Array.isArray(response.skipped) && response.skipped.length > 0) {
+        Alert.alert(
+          "Partial Success", 
+          `Availability updated, but ${response.skipped.length} dates were skipped (e.g., past dates).`,
+          [{ text: "OK", onPress: () => navigation.goBack() }]
+        );
+        return;
+      }
+
+      // Handle direct array response where everything is an error
+      if (Array.isArray(response) && response.some(r => r.skipped && r.error)) {
+        Alert.alert("Notice", "Some or all dates were skipped. You cannot set availability for a past date.");
+        return;
+      }
 
       Alert.alert("Success", "Availability updated successfully!");
       navigation.goBack();
     } catch (e: any) {
       console.error('Save availability failed:', e);
-      Alert.alert("Error", e.message || "Failed to update availability");
+      
+      let errorMsg = e.message || "Failed to update availability";
+      
+      // If the error message is a stringified JSON array from our apiCall
+      if (errorMsg.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(errorMsg);
+          if (Array.isArray(parsed) && parsed.some(r => r.skipped && r.error)) {
+             errorMsg = "You cannot set availability for a past date. Please ensure all selected dates are in the future.";
+          }
+        } catch (_) {}
+      }
+
+      Alert.alert("Update Failed", errorMsg);
     } finally {
       setSaving(false);
     }
@@ -163,6 +203,7 @@ const SetAvailabilityScreen = ({ navigation }: any) => {
             {/* DATES */}
             <View style={styles.datesGrid}>
               {DATES.map((date, index) => {
+                const isPast = date ? isPastDate(selectedMonth.getFullYear(), selectedMonth.getMonth(), date) : false;
                 const dateKey = date ? `${selectedMonth.getFullYear()}-${(selectedMonth.getMonth() + 1).toString().padStart(2, '0')}-${date.toString().padStart(2, '0')}` : '';
                 const isSelected = availableDates.includes(dateKey);
 
@@ -172,13 +213,16 @@ const SetAvailabilityScreen = ({ navigation }: any) => {
                     style={[
                       styles.dateCell,
                       isSelected && styles.activeDate,
+                      isPast && styles.pastDate,
                     ]}
                     onPress={() => toggleDate(date)}
+                    disabled={isPast}
                   >
                     <Text
                       style={[
                         styles.dateText,
                         isSelected && styles.activeDateText,
+                        isPast && styles.pastDateText
                       ]}
                     >
                       {date}
@@ -369,6 +413,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   activeDateText: { color: '#fff', fontWeight: '600' },
+  pastDate: {
+    backgroundColor: 'transparent',
+  },
+  pastDateText: {
+    color: '#D1D5DB',
+  },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',

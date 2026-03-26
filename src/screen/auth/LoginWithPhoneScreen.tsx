@@ -126,14 +126,9 @@ const LoginWithPhoneScreen = ({ navigation }: any) => {
 
                 <View style={styles.dividerRow}>
                     <View style={styles.divider} />
-                    <Text style={styles.orText}>or</Text>
                     <View style={styles.divider} />
                 </View>
 
-                <TouchableOpacity style={styles.socialBtn}>
-                    <Image source={require('../../asset/images/google.png')} style={styles.socialIcon} />
-                    <Text style={styles.socialText}>Sign Up with Google</Text>
-                </TouchableOpacity>
             </View>
         </View>
     );

@@ -26,23 +26,40 @@ const EditRecentWorksScreen = ({ navigation }: any) => {
       const token = userToken || await getToken();
       if (!token) return;
 
-      const response = await apiCall('/auth/me', { method: 'GET', token });
-      const userObj = response?.user || response;
-      const spObj = userObj?.serviceProvider;
+      let imgs: any[] = [];
 
-      let imgs = spObj?.portfolioImages || [];
+      // Use same fetch path as ArtistPortfolioScreen for consistency
+      try {
+        const providerProfile = await apiCall('/service-providers/profile', { method: 'GET', token });
+        const spId = providerProfile?.id || providerProfile?._id;
 
-      if (imgs.length === 0) {
-        const spId = spObj?.id || userObj?.serviceProviderId;
-        if (spId) {
-          try {
-            const portfolioData = await apiCall(`/service-providers/portfolio/${spId}`, { method: 'GET', token });
-            imgs = Array.isArray(portfolioData) ? portfolioData : (portfolioData?.images || []);
-          } catch (e) {
-            console.warn('Portfolio fetch error:', e);
+        if (providerProfile?.portfolioImages && Array.isArray(providerProfile.portfolioImages) && providerProfile.portfolioImages.length > 0) {
+          imgs = providerProfile.portfolioImages;
+        } else if (spId) {
+          const portfolioData = await apiCall(`/service-providers/portfolio/${spId}`, { method: 'GET', token });
+          imgs = Array.isArray(portfolioData) ? portfolioData : (portfolioData?.images || portfolioData?.data || []);
+        }
+      } catch (e) {
+        console.warn('Provider profile fetch error, trying /auth/me:', e);
+        // Fallback to /auth/me
+        const response = await apiCall('/auth/me', { method: 'GET', token });
+        const userObj = response?.user || response;
+        const spObj = userObj?.serviceProvider;
+        imgs = spObj?.portfolioImages || [];
+
+        if (imgs.length === 0) {
+          const spId = spObj?.id || spObj?._id || userObj?.serviceProviderId;
+          if (spId) {
+            try {
+              const portfolioData = await apiCall(`/service-providers/portfolio/${spId}`, { method: 'GET', token });
+              imgs = Array.isArray(portfolioData) ? portfolioData : (portfolioData?.images || portfolioData?.data || []);
+            } catch (e2) {
+              console.warn('Portfolio fetch error:', e2);
+            }
           }
         }
       }
+
       setGalleryImages(imgs);
     } catch (e) {
       console.warn('Failed to fetch gallery:', e);
@@ -73,21 +90,60 @@ const EditRecentWorksScreen = ({ navigation }: any) => {
     }
   };
 
+  const handleSaveGallery = async () => {
+    try {
+      setLoading(true);
+      const token = userToken || await getToken();
+      if (!token) return;
+
+      const formData = new FormData();
+      let hasNewFiles = false;
+
+      galleryImages.forEach((img, index) => {
+        // Assume newly picked images are local paths so they don't start with http
+        if (img.uri && !img.uri.startsWith('http')) {
+          formData.append('files', {
+            uri: img.uri,
+            type: img.type || 'image/jpeg',
+            name: img.name || `portfolio_${index}.jpg`,
+          } as any);
+          hasNewFiles = true;
+        }
+      });
+
+      if (!hasNewFiles) {
+        // No new files to upload
+        navigation.goBack();
+        return;
+      }
+
+      await apiCall('/service-providers/portfolio', {
+        method: 'POST',
+        body: formData,
+        token,
+      });
+
+      navigation.goBack();
+    } catch (e) {
+      console.warn('Failed to save gallery:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   React.useEffect(() => {
     fetchGallery();
   }, [fetchGallery]);
 
   const renderImageSource = (item: any) => {
     if (typeof item === 'number') return item;
-    const uri = typeof item === 'string' ? item : (item?.url || item?.uri || item?.image);
+    if (typeof item === 'string') return { uri: item };
+    const uri = item?.url || item?.uri || item?.image || item?.imageUrl || item?.secure_url || item?.path || item?.src;
     return { uri };
   };
 
-  const displayImages = galleryImages.length > 0 ? galleryImages : [
-    require('../../asset/images/artists1.png'),
-    require('../../asset/images/artists1.png'),
-    require('../../asset/images/artists1.png'),
-  ];
+  const displayImages = galleryImages;
+
   return (
     <ScreenView>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -104,7 +160,7 @@ const EditRecentWorksScreen = ({ navigation }: any) => {
 
             <Text style={styles.headerTitle}>Edit recent works</Text>
 
-            <TouchableOpacity style={styles.saveBtn}>
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSaveGallery} disabled={loading}>
               <FontAwesome name="save" size={18} color="#7B4DFF" />
             </TouchableOpacity>
           </View>
@@ -122,23 +178,29 @@ const EditRecentWorksScreen = ({ navigation }: any) => {
 
           {/* GALLERY */}
           <Text style={styles.galleryTitle}>
-            Your Gallery ({galleryImages.length > 0 ? galleryImages.length : 'Preview'})
+            Your Gallery ({galleryImages.length})
           </Text>
 
           <View style={styles.galleryGrid}>
-            {displayImages.map((img, index) => (
-              <View key={index} style={styles.imageWrapper}>
-                <Image source={renderImageSource(img)} style={styles.galleryImage} />
+            {displayImages.length > 0 ? (
+              displayImages.map((img, index) => (
+                <View key={index} style={styles.imageWrapper}>
+                  <Image source={renderImageSource(img)} style={styles.galleryImage} />
 
-                {/* delete overlay (optional) */}
-                <TouchableOpacity
-                  style={styles.deleteBtn}
-                  onPress={() => setGalleryImages(galleryImages.filter((_, i) => i !== index))}
-                >
-                  <FontAwesome name="times" size={12} color="#fff" />
-                </TouchableOpacity>
+                  {/* delete overlay (optional) */}
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => setGalleryImages(galleryImages.filter((_, i) => i !== index))}
+                  >
+                    <FontAwesome name="times" size={12} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ))
+            ) : (
+              <View style={{ width: '100%', alignItems: 'center', paddingVertical: 20 }}>
+                <Text style={{ color: '#9CA3AF' }}>No images added yet.</Text>
               </View>
-            ))}
+            )}
           </View>
 
           {/* TIPS */}
@@ -151,8 +213,8 @@ const EditRecentWorksScreen = ({ navigation }: any) => {
           </View>
 
           {/* SAVE BUTTON */}
-          <TouchableOpacity style={styles.saveGalleryBtn}>
-            <Text style={styles.saveGalleryText}>Save Gallery</Text>
+          <TouchableOpacity style={styles.saveGalleryBtn} onPress={handleSaveGallery} disabled={loading}>
+            <Text style={styles.saveGalleryText}>{loading ? 'Saving...' : 'Save Gallery'}</Text>
           </TouchableOpacity>
 
         </View>

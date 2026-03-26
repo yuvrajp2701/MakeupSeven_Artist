@@ -11,12 +11,12 @@ const STATIC_IMAGES = [
 ];
 
 interface Props {
+    portfolioImages: any[];
+    setPortfolioImages: (imgs: any[]) => void;
     pickDocument?: (onFilePicked: (file: any) => void) => void;
 }
 
-const PortfolioStep: React.FC<Props> = ({ pickDocument }) => {
-    const [portfolioImages, setPortfolioImages] = useState<any[]>(STATIC_IMAGES);
-
+const PortfolioStep: React.FC<Props> = ({ portfolioImages, setPortfolioImages, pickDocument }) => {
     const handleUpload = () => {
         if (pickDocument) {
             pickDocument((file) => {
@@ -46,12 +46,16 @@ const PortfolioStep: React.FC<Props> = ({ pickDocument }) => {
             <View style={styles.imageGrid}>
                 {portfolioImages.map((img, index) => (
                     <View key={index} style={styles.gridImageWrapper}>
-                        {typeof img === 'number' || img.type?.includes('image') ? (
-                            <Image source={typeof img === 'number' ? img : { uri: img.uri }} style={styles.gridImage} resizeMode="cover" />
+                        {typeof img === 'number' || (typeof img === 'string') || img.type?.includes('image') || img.uri || img.url ? (
+                            <Image 
+                                source={typeof img === 'number' ? img : { uri: typeof img === 'string' ? img : (img.uri || img.url) }} 
+                                style={styles.gridImage} 
+                                resizeMode="cover" 
+                            />
                         ) : (
                             <View style={[styles.gridImage, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>
                                 <FontAwesome name="file-text-o" size={30} color="#7C3AED" />
-                                <Text style={{ fontSize: 9, marginTop: 4, textAlign: 'center', paddingHorizontal: 4 }} numberOfLines={1}>{img.name}</Text>
+                                <Text style={{ fontSize: 9, marginTop: 4, textAlign: 'center', paddingHorizontal: 4 }} numberOfLines={1}>{img.name || 'File'}</Text>
                             </View>
                         )}
                         <TouchableOpacity

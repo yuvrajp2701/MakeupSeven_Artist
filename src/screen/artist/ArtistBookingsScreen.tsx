@@ -14,8 +14,6 @@ import FontAwesome from '@react-native-vector-icons/fontawesome';
 import ScreenView from '../../utils/ScreenView';
 import { apiCall } from '../../services/api';
 import { getToken } from '../../services/auth';
-import { DUMMY_BOOKINGS } from '../../utils/dummyData';
-
 
 const ArtistBookingsScreen = () => {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
@@ -34,15 +32,27 @@ const ArtistBookingsScreen = () => {
         return;
       }
 
-      const response = await apiCall('/booking', { method: 'GET', token });
-      const data = Array.isArray(response) ? response : (response?.bookings || response?.data || []);
+      const [upcomingRes, pastRes] = await Promise.all([
+        apiCall('/booking/upcoming-bookings', { method: 'GET', token }).catch(e => { console.warn('Upcoming Fetch Error', e); return null; }),
+        apiCall('/booking/past-bookings', { method: 'GET', token }).catch(e => { console.warn('Past Fetch Error', e); return null; })
+      ]);
 
-      console.log('Fetched Bookings:', data.length);
-      // Fall back to dummy data when API returns nothing (dev / staging)
-      setBookings(data.length > 0 ? data : DUMMY_BOOKINGS);
+      const upcomingData = Array.isArray(upcomingRes) ? upcomingRes : (upcomingRes?.bookings || upcomingRes?.data || []);
+      const pastData = Array.isArray(pastRes) ? pastRes : (pastRes?.bookings || pastRes?.data || []);
+
+      const allBookings = [...upcomingData, ...pastData];
+      
+      // Remove duplicates just in case an active booking overlaps
+      const uniqueBookings = Array.from(new Map(allBookings.map(b => [(b._id || b.id || Math.random()), b])).values());
+
+      console.log('Fetched Bookings:', uniqueBookings.length);
+      
+      // Set the actual API data directly. 
+      // This will correctly show 'No bookings found' if the array is empty.
+      setBookings(uniqueBookings);
     } catch (error) {
-      console.warn('Failed to fetch bookings, using dummy data:', error);
-      setBookings(DUMMY_BOOKINGS); // Show dummy data on network error during dev
+      console.warn('Failed to fetch bookings:', error);
+      setBookings([]); // Use empty array on error instead of dummy data for production
     } finally {
       setLoading(false);
     }

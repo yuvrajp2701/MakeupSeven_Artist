@@ -16,6 +16,7 @@ import { useRoute } from '@react-navigation/native';
 import { apiCall } from '../../services/api';
 import { getToken } from '../../services/auth';
 import { useAuth } from '../../context/AuthContext';
+import { getCategoryIdByName } from '../../services/categoryService';
 
 const EditServiceScreen = ({ navigation }: any) => {
     const route = useRoute<any>();
@@ -44,6 +45,8 @@ const EditServiceScreen = ({ navigation }: any) => {
             const token = userToken || await getToken();
             if (!token) return;
 
+            const categoryLabel = editingService?.category || "Makeup"; // Default category
+
             const payload = {
                 name,
                 description,
@@ -52,13 +55,13 @@ const EditServiceScreen = ({ navigation }: any) => {
                 discountPrice: discountPrice ? parseFloat(discountPrice) : parseFloat(basePrice),
                 whoShouldTake,
                 whoShouldAvoid,
-                category: editingService?.category || "Makeup", // Default category
+                categoryId: getCategoryIdByName(categoryLabel),
             };
 
             if (editingService?.id || editingService?._id) {
                 const id = editingService.id || editingService._id;
                 await apiCall(`/services/${id}`, {
-                    method: 'PUT',
+                    method: 'PATCH',
                     token,
                     body: payload
                 });

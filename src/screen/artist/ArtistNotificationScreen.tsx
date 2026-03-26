@@ -1,24 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, SafeAreaView, StatusBar } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, SectionList, SafeAreaView, StatusBar, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { apiCall } from '../../services/api';
 import { getToken } from '../../services/auth';
 import { useAuth } from '../../context/AuthContext';
-
-
-const NOTIFICATIONS_DEFAULT = [
-    {
-        id: '1',
-        type: 'alert',
-        title: 'Welcome to MakeupSeven',
-        message: 'Start by completing your artist profile to get more bookings.',
-        time: 'Just now',
-        unread: true,
-        icon: 'stars',
-        color: '#8855FF',
-        bgColor: '#F3EFFF',
-    }
-];
 
 const FILTERS = ['All', 'Bookings', 'Payments', 'Reviews'];
 
@@ -26,61 +11,152 @@ const ArtistNotificationScreen = ({ navigation }: any) => {
     const { userToken } = useAuth();
     const [selectedFilter, setSelectedFilter] = useState('All');
     const [loading, setLoading] = useState(false);
-    const [notifications, setNotifications] = useState<any[]>(NOTIFICATIONS_DEFAULT);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
 
-    const fetchNotifications = React.useCallback(async () => {
+    const fetchNotifications = useCallback(async () => {
         try {
             setLoading(true);
             const token = userToken || await getToken();
             if (!token) return;
 
-            // Using ledger as a proxy for notifications since there's no explicit notification API
-            const response = await apiCall('/reward/user/wallet/ledger', { method: 'GET', token });
-            const list = Array.isArray(response) ? response : (response?.ledger || response?.data || []);
-
-            if (list.length > 0) {
-                const mapped = list.map((item: any) => ({
-                    id: item.id || item._id,
-                    type: item.type === 'credit' ? 'payment' : 'processing',
-                    title: item.title || (item.type === 'credit' ? 'Payment Received' : 'Transaction'),
-                    message: item.description || (item.type === 'credit' ? `You earned ₹${item.points || item.amount}` : 'Transaction processed'),
-                    time: new Date(item.createdAt).toLocaleDateString(),
-                    unread: false,
-                    icon: item.type === 'credit' ? 'attach-money' : 'access-time',
-                    color: item.type === 'credit' ? '#00C853' : '#2962FF',
-                    bgColor: item.type === 'credit' ? '#E8F5E9' : '#E3F2FD',
-                }));
-                // Combine with default welcome message
-                setNotifications([...NOTIFICATIONS_DEFAULT, ...mapped]);
+            const filterParam = selectedFilter.toLowerCase();
+            const response = await apiCall(`/notifications?filter=${filterParam}`, { method: 'GET', token });
+            
+            let list: any[] = [];
+            if (response && typeof response === 'object' && !Array.isArray(response) && (response.Today || response.Yesterday || response.Earlier)) {
+                if (response.Today?.length > 0) list.push({ title: 'Today', data: response.Today });
+                if (response.Yesterday?.length > 0) list.push({ title: 'Yesterday', data: response.Yesterday });
+                if (response.Earlier?.length > 0) list.push({ title: 'Earlier', data: response.Earlier });
+            } else {
+                const flatList = Array.isArray(response) ? response : (response?.data || response?.notifications || []);
+                if (flatList.length > 0) list = [{ title: 'All Notifications', data: flatList }];
             }
+            setNotifications(list);
         } catch (error) {
-            // Ledger 404 means no transactions yet, which is normal for new users
-            console.log('[Notifications] Ledger info not available yet (normal for new users)');
-            setNotifications(NOTIFICATIONS_DEFAULT);
+            console.log('[Notifications] Error fetching notifications', error);
         } finally {
             setLoading(false);
         }
+    }, [userToken, selectedFilter]);
+
+    const fetchUnreadCount = useCallback(async () => {
+        try {
+            const token = userToken || await getToken();
+            if (!token) return;
+
+            const response = await apiCall('/notifications/unread-count', { method: 'GET', token });
+            setUnreadCount(response?.count || response?.unreadCount || response?.data?.count || 0);
+        } catch (error) {
+            console.log('[Notifications] Error fetching unread count', error);
+        }
     }, [userToken]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         fetchNotifications();
     }, [fetchNotifications]);
 
-    const renderItem = ({ item }: { item: any }) => (
-        <View style={styles.notificationCard}>
-            <View style={[styles.iconContainer, { backgroundColor: item.bgColor }]}>
-                <Icon name={item.icon} size={24} color={item.color} />
-            </View>
-            <View style={styles.contentContainer}>
-                <View style={styles.headerRow}>
-                    <Text style={styles.title}>{item.title}</Text>
-                    {item.unread && <View style={styles.unreadDot} />}
+    useEffect(() => {
+        fetchUnreadCount();
+    }, [fetchUnreadCount, notifications]);
+
+    const handleMarkRead = async (id: string, currentUnread: boolean) => {
+        if (!currentUnread) return;
+        try {
+            const token = userToken || await getToken();
+            if (!token) return;
+
+            await apiCall(`/notifications/${id}/read`, { method: 'PATCH', token });
+            setNotifications(prev => prev.map(section => ({
+                ...section,
+                data: section.data.map((n: any) => {
+                    const nId = n.id || n._id;
+                    return nId === id ? { ...n, isRead: true, unread: false } : n;
+                })
+            })));
+            fetchUnreadCount();
+        } catch (error) {
+            console.log('Error marking notification read', error);
+        }
+    };
+
+    const handleMarkAllRead = async () => {
+        try {
+            const token = userToken || await getToken();
+            if (!token) return;
+
+            setLoading(true);
+            await apiCall('/notifications/read-all', { method: 'PATCH', token });
+            await fetchNotifications();
+            fetchUnreadCount();
+        } catch (error) {
+            console.log('Error marking all read', error);
+            setLoading(false);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        Alert.alert('Delete Notification', 'Are you sure you want to delete this notification?', [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+                text: 'Delete', 
+                style: 'destructive',
+                onPress: async () => {
+                    try {
+                        const token = userToken || await getToken();
+                        if (!token) return;
+                        
+                        await apiCall(`/notifications/${id}`, { method: 'DELETE', token });
+                        setNotifications(prev => prev.map(section => ({
+                            ...section,
+                            data: section.data.filter((n: any) => {
+                                const nId = n.id || n._id;
+                                return nId !== id;
+                            })
+                        })).filter(section => section.data.length > 0));
+                        fetchUnreadCount();
+                    } catch (error) {
+                        console.log('Error deleting notification', error);
+                    }
+                }
+            }
+        ]);
+    };
+
+    const renderItem = ({ item }: { item: any }) => {
+        const isUnread = item.unread !== undefined ? item.unread : (item.isRead === false);
+        const iconName = item.icon || (item.type === 'booking' ? 'calendar-today' : item.type === 'payment' ? 'attach-money' : item.type === 'review' ? 'star' : 'notifications');
+        const bgColor = item.bgColor || (item.type === 'payment' ? '#E8F5E9' : '#E3F2FD');
+        const color = item.color || (item.type === 'payment' ? '#00C853' : '#2962FF');
+        // Handle potentially missing time values
+        const timeString = item.time || (item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Just now');
+        const nId = item.id || item._id;
+
+        return (
+            <TouchableOpacity 
+                style={styles.notificationCard} 
+                onPress={() => handleMarkRead(nId, isUnread)}
+                activeOpacity={0.7}
+            >
+                <View style={[styles.iconContainer, { backgroundColor: bgColor }]}>
+                    <Icon name={iconName} size={24} color={color} />
                 </View>
-                <Text style={styles.message}>{item.message}</Text>
-                <Text style={styles.time}>{item.time}</Text>
-            </View>
-        </View>
-    );
+                <View style={styles.contentContainer}>
+                    <View style={styles.headerRow}>
+                        <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
+                        <View style={styles.rightHeaderAction}>
+                            {isUnread && <View style={styles.unreadDot} />}
+                            <TouchableOpacity onPress={() => handleDelete(nId)} style={styles.deleteButton}>
+                                <Icon name="close" size={18} color="#999" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                    <Text style={styles.message}>{item.body || item.message || item.description}</Text>
+                    <Text style={styles.time}>{timeString}</Text>
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -91,9 +167,12 @@ const ArtistNotificationScreen = ({ navigation }: any) => {
                 <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
                     <Icon name="arrow-back" size={24} color="#555" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Notification</Text>
-                <TouchableOpacity style={styles.markReadButton} onPress={fetchNotifications}>
-                    <Icon name="refresh" size={24} color="#8855FF" />
+                <View style={{alignItems: 'center'}}>
+                    <Text style={styles.headerTitle}>Notifications</Text>
+                    {unreadCount > 0 && <Text style={styles.unreadCountText}>{unreadCount} Unread</Text>}
+                </View>
+                <TouchableOpacity style={styles.markReadButton} onPress={handleMarkAllRead}>
+                    <Icon name="done-all" size={24} color="#8855FF" />
                 </TouchableOpacity>
             </View>
 
@@ -123,10 +202,13 @@ const ArtistNotificationScreen = ({ navigation }: any) => {
             </View>
 
             {/* List */}
-            <FlatList
-                data={notifications}
-                keyExtractor={(item) => item.id}
+            <SectionList
+                sections={notifications}
+                keyExtractor={(item, index) => (item.id || item._id || index).toString()}
                 renderItem={renderItem}
+                renderSectionHeader={({ section: { title } }) => (
+                    <Text style={styles.sectionHeader}>{title}</Text>
+                )}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
                 refreshing={loading}
@@ -154,7 +236,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        backgroundColor: '#F3EFFF', // Light purple header bg
+        backgroundColor: '#F3EFFF',
     },
     backButton: {
         width: 40,
@@ -168,6 +250,12 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
         color: '#8855FF',
+    },
+    unreadCountText: {
+        fontSize: 12,
+        color: '#8855FF',
+        fontWeight: '600',
+        marginTop: 2,
     },
     markReadButton: {
         width: 40,
@@ -204,20 +292,24 @@ const styles = StyleSheet.create({
         padding: 16,
         gap: 16,
     },
+    sectionHeader: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#333',
+        marginTop: 8,
+        marginBottom: 4,
+    },
     notificationCard: {
         flexDirection: 'row',
         padding: 16,
         backgroundColor: '#fff',
         borderRadius: 16,
-        marginBottom: 0,
         borderWidth: 1,
         borderColor: '#F0F0F0',
-        // Shadow for iOS
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
         shadowRadius: 8,
-        // Elevation for Android
         elevation: 2,
     },
     iconContainer: {
@@ -244,12 +336,19 @@ const styles = StyleSheet.create({
         flex: 1,
         marginRight: 8,
     },
+    rightHeaderAction: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
     unreadDot: {
         width: 8,
         height: 8,
         borderRadius: 4,
         backgroundColor: '#8855FF',
-        marginTop: 6,
+    },
+    deleteButton: {
+        padding: 2,
     },
     message: {
         fontSize: 14,

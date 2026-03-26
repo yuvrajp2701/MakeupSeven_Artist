@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, SafeAreaView, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar, SafeAreaView, Modal, TextInput, Alert, ActivityIndicator, Animated, Easing } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Colors from '../../utils/Colors';
@@ -167,7 +167,19 @@ const ArtistWalletScreen = () => {
     setWithdrawAmount('');
   };
 
+  // Upcoming Feature overlay animation
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.12, duration: 900, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+      ])
+    ).start();
+  }, []);
+
   return (
+    <View style={{ flex: 1 }}>
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -491,6 +503,47 @@ const ArtistWalletScreen = () => {
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
+
+      {/* ──── Upcoming Feature Overlay ──── */}
+      <View style={styles.upcomingOverlay} pointerEvents="box-none">
+        <LinearGradient
+          colors={['rgba(15,10,40,0.82)', 'rgba(30,15,70,0.96)']}
+          style={styles.upcomingGradient}
+        >
+          {/* Decorative glow circles */}
+          <View style={styles.glowCircle1} />
+          <View style={styles.glowCircle2} />
+
+          {/* Badge */}
+          <View style={styles.upcomingBadge}>
+            <Icon name="rocket-launch" size={13} color="#fff" style={{ marginRight: 5 }} />
+            <Text style={styles.upcomingBadgeText}>COMING SOON</Text>
+          </View>
+
+          {/* Animated Icon */}
+          <Animated.View style={[styles.upcomingIconCircle, { transform: [{ scale: pulseAnim }] }]}>
+            <LinearGradient
+              colors={['#9B59FF', '#6C2FD9']}
+              style={styles.upcomingIconGradient}
+            >
+              <Icon name="account-balance-wallet" size={44} color="#fff" />
+            </LinearGradient>
+          </Animated.View>
+
+          <Text style={styles.upcomingTitle}>Wallet</Text>
+          <Text style={styles.upcomingSubtitle}>
+            Your earnings dashboard is almost here.{`\n`}Withdraw, track & manage finances seamlessly.
+          </Text>
+
+          {/* Feature pills */}
+          <View style={styles.featurePillsRow}>
+            <View style={styles.featurePill}><Icon name="payments" size={13} color="#B388FF" style={{ marginRight: 4 }} /><Text style={styles.featurePillText}>Instant Payouts</Text></View>
+            <View style={styles.featurePill}><Icon name="bar-chart" size={13} color="#B388FF" style={{ marginRight: 4 }} /><Text style={styles.featurePillText}>Analytics</Text></View>
+            <View style={styles.featurePill}><Icon name="history" size={13} color="#B388FF" style={{ marginRight: 4 }} /><Text style={styles.featurePillText}>History</Text></View>
+          </View>
+        </LinearGradient>
+      </View>
+    </View>
   );
 };
 
@@ -972,6 +1025,106 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+
+  // ── Upcoming Feature Overlay ──
+  upcomingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 999,
+    elevation: 999,
+  },
+  upcomingGradient: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    overflow: 'hidden',
+  },
+  glowCircle1: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: 'rgba(139, 92, 246, 0.18)',
+    top: -60,
+    right: -80,
+  },
+  glowCircle2: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(99, 47, 217, 0.15)',
+    bottom: 60,
+    left: -60,
+  },
+  upcomingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(155, 89, 255, 0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(155, 89, 255, 0.5)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    marginBottom: 28,
+  },
+  upcomingBadgeText: {
+    color: '#D8B4FE',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+  },
+  upcomingIconCircle: {
+    marginBottom: 24,
+    shadowColor: '#9B59FF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  upcomingIconGradient: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  upcomingTitle: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.5,
+    marginBottom: 14,
+    textAlign: 'center',
+  },
+  upcomingSubtitle: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.65)',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 36,
+  },
+  featurePillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  featurePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(179, 136, 255, 0.3)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  featurePillText: {
+    color: '#C4B5FD',
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
 

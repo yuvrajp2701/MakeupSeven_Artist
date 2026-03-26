@@ -69,9 +69,15 @@ const ArtistHomeScreen = ({ navigation }: any) => {
 
         // 1.1 Get Wallet/Earnings
         try {
-          const walletResponse = await apiCall('/reward/user/wallet', { method: 'GET', token, silent: true });
-          if (walletResponse && typeof walletResponse === 'object') {
-            setTotalEarnings(walletResponse.totalPoints || walletResponse.balance || 0);
+          const walletResponse = await apiCall('/reward/user/wallet', { method: 'GET', token, silent: true }).catch(() => null);
+          const earningsRes = await apiCall('/booking/payments/artist/earnings', { method: 'GET', token, silent: true }).catch(() => null);
+
+          // Merge any total earnings
+          const eData = earningsRes?.data || earningsRes || {};
+          if (eData && (eData.totalEarnings !== undefined || eData.earnings !== undefined)) {
+            setTotalEarnings(eData.totalEarnings || eData.earnings || 0);
+          } else if (walletResponse && typeof walletResponse === 'object') {
+            setTotalEarnings(walletResponse.totalEarnedPoints || walletResponse.totalPoints || walletResponse.balance || 0);
           }
 
           // 1.2 Get Activity/Ledger
@@ -79,22 +85,25 @@ const ArtistHomeScreen = ({ navigation }: any) => {
           const ledgerList = Array.isArray(ledgerResponse) ? ledgerResponse : (ledgerResponse?.ledger || ledgerResponse?.data || []);
 
           if (ledgerList.length > 0) {
-            // Calculate This Month Earnings
+            // Calculate This Month Earnings if API didn't provide it
+            let thisMonthEarnings = eData?.monthlyEarnings || eData?.thisMonth || 0;
             const now = new Date();
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
 
-            const thisMonthEarnings = ledgerList.reduce((acc: number, item: any) => {
-              const itemDate = new Date(item.createdAt);
-              if (
-                item.type === 'credit' &&
-                itemDate.getMonth() === currentMonth &&
-                itemDate.getFullYear() === currentYear
-              ) {
-                return acc + (item.points || item.amount || 0);
-              }
-              return acc;
-            }, 0);
+            if (!thisMonthEarnings) {
+              thisMonthEarnings = ledgerList.reduce((acc: number, item: any) => {
+                const itemDate = new Date(item.createdAt);
+                if (
+                  item.type === 'credit' &&
+                  itemDate.getMonth() === currentMonth &&
+                  itemDate.getFullYear() === currentYear
+                ) {
+                  return acc + (item.points || item.amount || 0);
+                }
+                return acc;
+              }, 0);
+            }
 
             setMonthlyEarnings(thisMonthEarnings);
 
@@ -129,7 +138,7 @@ const ArtistHomeScreen = ({ navigation }: any) => {
 
       // 3. Get Bookings
       try {
-        const bookingsData = await apiCall('/booking', { method: 'GET', token });
+        const bookingsData = await apiCall('/booking/upcoming-bookings', { method: 'GET', token });
         const list = Array.isArray(bookingsData) ? bookingsData : (bookingsData?.bookings || bookingsData?.data || []);
 
         if (list.length > 0) {

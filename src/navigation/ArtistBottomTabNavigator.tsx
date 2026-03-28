@@ -1,8 +1,9 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Text, Alert } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import type { RouteProp } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Colors from '../utils/Colors';
 import ArtistHomeScreen from '../screen/artist/ArtistHomeScreen';
@@ -22,14 +23,17 @@ type ArtistTabParamList = {
 
 const Tab = createBottomTabNavigator<ArtistTabParamList>();
 
-const ArtistBottomTabNavigator = () => (
+const ArtistBottomTabNavigator = () => {
+  const insets = useSafeAreaInsets();
+
+  return (
   <Tab.Navigator
     screenOptions={({ route }: { route: RouteProp<ArtistTabParamList, keyof ArtistTabParamList> }) => ({
       headerShown: false,
       tabBarShowLabel: true,
       tabBarStyle: {
-        height: 70, // Slightly reduced for better proportion
-        paddingBottom: 10,
+        height: 60 + Math.max(insets.bottom, 10), // Dynamically adjust height
+        paddingBottom: Math.max(insets.bottom, 10), // Avoid overlap with Android system navigation
         paddingTop: 10,
         backgroundColor: '#fff',
         borderTopWidth: 0,
@@ -76,9 +80,19 @@ const ArtistBottomTabNavigator = () => (
       name="Bookings"
       component={ArtistBookingsStackNavigator}
     />
-    <Tab.Screen name="Courses" component={CoursesScreen} />
+    <Tab.Screen 
+      name="Courses" 
+      component={CoursesScreen} 
+      listeners={{
+        tabPress: (e) => {
+          e.preventDefault();
+          Alert.alert("Upcoming Feature", "Courses will be available soon!");
+        },
+      }}
+    />
     <Tab.Screen name="Wallet" component={ArtistWalletScreen} />
   </Tab.Navigator>
-);
+  );
+};
 
 export default ArtistBottomTabNavigator;

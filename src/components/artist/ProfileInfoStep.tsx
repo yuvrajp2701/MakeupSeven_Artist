@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
     View,
     Text,
@@ -101,6 +101,21 @@ const ProfileInfoStep: React.FC<Props> = ({
     cityOptions,
     categoryOptions,
 }) => {
+    const webViewRef = useRef<WebView>(null);
+
+    // Keep map updated when radius changes without reloading webview
+    useEffect(() => {
+        if (webViewRef.current && latitude !== null && longitude !== null) {
+            const js = `
+                if (window.updateCircle) {
+                    window.updateCircle(${latitude}, ${longitude}, ${radius * 1000});
+                }
+                true;
+            `;
+            webViewRef.current.injectJavaScript(js);
+        }
+    }, [radius, latitude, longitude]);
+
     return (
         <>
             {/* ── Personal Information ── */}
@@ -199,14 +214,39 @@ const ProfileInfoStep: React.FC<Props> = ({
       iconSize:[26,26], iconAnchor:[13,26], className:''
     });
     var marker = L.marker([lat,lng],{icon:icon,draggable:true}).addTo(map);
+    
+    var initRadius = ${Math.round(radius * 1000)};
+    var circle = L.circle([lat, lng], {
+      color: '#7C3AED',
+      fillColor: '#7C3AED',
+      fillOpacity: 0.2,
+      radius: initRadius
+    }).addTo(map);
+
+    window.updateCircle = function(newLat, newLng, newRadiusMeters) {
+      if(circle) {
+        circle.setLatLng([newLat, newLng]);
+        circle.setRadius(newRadiusMeters);
+      }
+    };
+
     function send(latlng){
       if(window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({lat:latlng.lat.toFixed(6),lng:latlng.lng.toFixed(6)}));
     }
-    marker.on('dragend', e => send(e.target.getLatLng()));
-    map.on('click', e => { marker.setLatLng(e.latlng); send(e.latlng); });
+    marker.on('dragend', e => {
+      var pos = e.target.getLatLng();
+      if(window.updateCircle) window.updateCircle(pos.lat, pos.lng, initRadius);
+      send(pos);
+    });
+    map.on('click', e => { 
+      marker.setLatLng(e.latlng); 
+      if(window.updateCircle) window.updateCircle(e.latlng.lat, e.latlng.lng, initRadius);
+      send(e.latlng); 
+    });
   </script>
 </body></html>`,
                             }}
+                            ref={webViewRef}
                             onMessage={(e: any) => {
                                 try {
                                     const { lat, lng } = JSON.parse(e.nativeEvent.data);

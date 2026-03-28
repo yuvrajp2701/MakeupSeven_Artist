@@ -101,7 +101,7 @@ const CreateArtistProfileScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [currentOptions, setCurrentOptions] = useState<string[]>([]);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
-  const onOptionSelectRef = useRef<(val: string) => void>(() => {});
+  const onOptionSelectRef = useRef<(val: string) => void>(() => { });
 
   // ── Geocode pincode ────────────────────────────────────────
   const geocodePincode = async (code: string) => {
@@ -388,7 +388,7 @@ const CreateArtistProfileScreen = () => {
         setStatus('PENDING'); // Set to pending after submission
         setShowUpdateSuccess(true); // Show success banner
         setVerificationModalVisible(true);
-        
+
         // Navigate to dashboard after successful submission
         setTimeout(() => {
           navigation.navigate('Artist');
@@ -575,10 +575,10 @@ const CreateArtistProfileScreen = () => {
         )}
 
         {step === 1 && (
-          <PortfolioStep 
+          <PortfolioStep
             portfolioImages={portfolioImages}
             setPortfolioImages={setPortfolioImages}
-            pickDocument={pickDocument} 
+            pickDocument={pickDocument}
           />
         )}
 

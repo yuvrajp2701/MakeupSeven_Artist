@@ -9,6 +9,7 @@ import {
     Image,
     ActivityIndicator,
     Alert,
+    Switch,
 } from 'react-native';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import ScreenView from '../../utils/ScreenView';
@@ -28,11 +29,12 @@ const EditServiceScreen = ({ navigation }: any) => {
     const [description, setDescription] = useState(editingService?.description || '');
     const [duration, setDuration] = useState(editingService?.duration?.toString() || '60');
     const [basePrice, setBasePrice] = useState(editingService?.basePrice?.toString() || '');
+    const [normalPrice, setNormalPrice] = useState(editingService?.normalPrice?.toString() || editingService?.basePrice?.toString() || '');
     const [discountPrice, setDiscountPrice] = useState(editingService?.discountPrice?.toString() || '');
     const [whoShouldTake, setWhoShouldTake] = useState(editingService?.whoShouldTake || '');
     const [whoShouldAvoid, setWhoShouldAvoid] = useState(editingService?.whoShouldAvoid || '');
-
-    const [avoidService, setAvoidService] = useState(true);
+    const [isActive, setIsActive] = useState(editingService?.isActive !== undefined ? editingService.isActive : true);
+    const [categoryId, setCategoryId] = useState(editingService?.categoryId || editingService?.category?._id || '');
 
     const handleSave = async () => {
         if (!name || !basePrice || !duration) {
@@ -45,33 +47,51 @@ const EditServiceScreen = ({ navigation }: any) => {
             const token = userToken || await getToken();
             if (!token) return;
 
-            const categoryLabel = editingService?.category || "Makeup"; // Default category
+            // Get category ID - either from state or fetch by name
+            let finalCategoryId = categoryId;
+            if (!finalCategoryId && editingService?.category) {
+                const categoryName = typeof editingService.category === 'string'
+                    ? editingService.category
+                    : editingService.category.name;
+                finalCategoryId = getCategoryIdByName(categoryName);
+            } else if (!finalCategoryId) {
+                // Default category
+                finalCategoryId = getCategoryIdByName("Makeup");
+            }
 
+            // Prepare payload according to the required structure
             const payload = {
-                name,
-                description,
-                duration: parseInt(duration),
+                name: name.trim(),
+                description: description.trim(),
                 basePrice: parseFloat(basePrice),
+                duration: parseInt(duration),
+                categoryId: finalCategoryId,
+                normalPrice: normalPrice ? parseFloat(normalPrice) : parseFloat(basePrice),
                 discountPrice: discountPrice ? parseFloat(discountPrice) : parseFloat(basePrice),
-                whoShouldTake,
-                whoShouldAvoid,
-                categoryId: getCategoryIdByName(categoryLabel),
+                whoShouldTake: whoShouldTake.trim(),
+                whoShouldAvoid: whoShouldAvoid.trim(),
+                isActive: isActive,
             };
 
+            let response;
             if (editingService?.id || editingService?._id) {
                 const id = editingService.id || editingService._id;
-                await apiCall(`/services/${id}`, {
+                // For update - using PATCH
+                response = await apiCall(`/services/${id}`, {
                     method: 'PATCH',
                     token,
                     body: payload
                 });
+                console.log("Update response:", response);
                 Alert.alert("Success", "Service updated successfully");
             } else {
-                await apiCall('/services', {
+                // For create - using POST
+                response = await apiCall('/services', {
                     method: 'POST',
                     token,
                     body: payload
                 });
+                console.log("Create response:", response);
                 Alert.alert("Success", "Service created successfully");
             }
             navigation.goBack();
@@ -104,7 +124,7 @@ const EditServiceScreen = ({ navigation }: any) => {
                     {/* SERVICE CARD */}
                     <View style={styles.serviceCard}>
                         {/* Service Name */}
-                        <Text style={styles.label}>Service Name</Text>
+                        <Text style={styles.label}>Service Name *</Text>
                         <TextInput
                             style={styles.input}
                             placeholder="e.g. Bridal Makeup"
@@ -123,7 +143,7 @@ const EditServiceScreen = ({ navigation }: any) => {
                         />
 
                         {/* Duration */}
-                        <Text style={styles.label}>Duration (minutes)</Text>
+                        <Text style={styles.label}>Duration (minutes) *</Text>
                         <View style={styles.durationBox}>
                             <FontAwesome name="clock-o" size={16} color="#6B7280" />
                             <TextInput
@@ -131,27 +151,44 @@ const EditServiceScreen = ({ navigation }: any) => {
                                 value={duration}
                                 onChangeText={setDuration}
                                 keyboardType="numeric"
+                                placeholder="60"
                             />
                         </View>
 
                         {/* Prices */}
+                        <Text style={styles.label}>Pricing</Text>
                         <View style={styles.priceRow}>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.label}>Base Price (₹)</Text>
+                                <Text style={styles.subLabel}>Base Price (₹) *</Text>
                                 <TextInput
                                     style={styles.input}
                                     value={basePrice}
                                     onChangeText={setBasePrice}
                                     keyboardType="numeric"
+                                    placeholder="e.g. 1000"
                                 />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.label}>Discount Price (₹)</Text>
+                                <Text style={styles.subLabel}>Normal Price (₹)</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={normalPrice}
+                                    onChangeText={setNormalPrice}
+                                    keyboardType="numeric"
+                                    placeholder="e.g. 1500"
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.priceRow}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.subLabel}>Discount Price (₹)</Text>
                                 <TextInput
                                     style={styles.input}
                                     value={discountPrice}
                                     onChangeText={setDiscountPrice}
                                     keyboardType="numeric"
+                                    placeholder="e.g. 800"
                                 />
                             </View>
                         </View>
@@ -163,9 +200,10 @@ const EditServiceScreen = ({ navigation }: any) => {
                         <Text style={styles.label}>Who should take this service?</Text>
                         <TextInput
                             style={[styles.input, styles.textArea]}
-                            placeholder="e.g. To increase glow..."
+                            placeholder="e.g. Brides looking for natural glow..."
                             value={whoShouldTake}
                             onChangeText={setWhoShouldTake}
+                            multiline
                         />
 
                         <Text style={styles.label}>Who should avoid this service?</Text>
@@ -174,7 +212,29 @@ const EditServiceScreen = ({ navigation }: any) => {
                             placeholder="e.g. If you have active acne..."
                             value={whoShouldAvoid}
                             onChangeText={setWhoShouldAvoid}
+                            multiline
                         />
+
+                        {/* Active Status Switch (only for edit mode) */}
+                        {editingService && (
+                            <View style={styles.switchContainer}>
+                                <Text style={styles.label}>Service Status</Text>
+                                <View style={styles.switchRow}>
+                                    <Text style={styles.switchLabel}>
+                                        {isActive ? 'Active' : 'Inactive'}
+                                    </Text>
+                                    <Switch
+                                        value={isActive}
+                                        onValueChange={setIsActive}
+                                        trackColor={{ false: '#E5E7EB', true: '#7B4DFF' }}
+                                        thumbColor={isActive ? '#fff' : '#fff'}
+                                    />
+                                </View>
+                                <Text style={styles.switchHint}>
+                                    {isActive ? 'Service is visible to customers' : 'Service is hidden from customers'}
+                                </Text>
+                            </View>
+                        )}
 
                         <TouchableOpacity
                             style={[styles.saveMainBtn, loading && { opacity: 0.7 }]}
@@ -240,6 +300,13 @@ const styles = StyleSheet.create({
         color: '#6B7280',
         marginTop: 14,
         marginBottom: 6,
+        fontWeight: '500',
+    },
+
+    subLabel: {
+        fontSize: 12,
+        color: '#9CA3AF',
+        marginBottom: 4,
     },
 
     input: {
@@ -248,6 +315,8 @@ const styles = StyleSheet.create({
         padding: 12,
         fontSize: 14,
         color: '#000',
+        borderWidth: 1,
+        borderColor: '#F3F4F6',
     },
     textArea: {
         height: 80,
@@ -260,18 +329,23 @@ const styles = StyleSheet.create({
         backgroundColor: '#F9FAFB',
         paddingHorizontal: 12,
         borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#F3F4F6',
+        gap: 8,
     },
 
     priceRow: {
         flexDirection: 'row',
         gap: 12,
+        marginBottom: 12,
     },
 
     sectionTitle: {
         fontSize: 15,
         fontWeight: '600',
         marginTop: 20,
-        color: '#000',
+        marginBottom: 8,
+        color: '#111827',
     },
 
     saveMainBtn: {
@@ -285,5 +359,27 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
+    },
+    switchContainer: {
+        marginTop: 16,
+        paddingTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: '#F3F4F6',
+    },
+    switchRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    switchLabel: {
+        fontSize: 14,
+        color: '#111827',
+        fontWeight: '500',
+    },
+    switchHint: {
+        fontSize: 12,
+        color: '#9CA3AF',
+        marginTop: 6,
     },
 });

@@ -160,7 +160,7 @@ const ProfileInfoStep: React.FC<Props> = ({
                 onPress={(layout: any) => openDropdown(cityOptions, setCity, layout)} />
 
             <InputGroup label="Area / locality" placeholder="Enter your area or locality" value={area} onChangeText={setArea} />
-            <InputGroup
+            {/* <InputGroup
                 label="Pincode"
                 placeholder="Enter pin code"
                 value={pincode}
@@ -170,7 +170,7 @@ const ProfileInfoStep: React.FC<Props> = ({
                     else { setLatitude(null as any); setLongitude(null as any); }
                 }}
                 keyboardType="numeric"
-            />
+            /> */}
 
             {geocoding && (
                 <View style={styles.mapLoadingBox}>

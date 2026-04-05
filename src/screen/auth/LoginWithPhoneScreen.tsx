@@ -43,12 +43,17 @@ const LoginWithPhoneScreen = ({ navigation }: any) => {
 
             // Try to call backend send-otp endpoint
             let otpSentViaServer = false;
+            let resFirstLogin = false;
             try {
                 const res = await apiCall('/auth/send-otp', {
                     method: 'POST',
                     body: { mobile: cleanPhone, role: 'ARTIST' },
                 });
                 console.log('[OTP] Server send-otp response:', res);
+
+                // ✅ Capture firstLogin flag from response
+                resFirstLogin = res?.firstLogin || false;
+                console.log('[OTP] First login from server:', resFirstLogin);
 
                 // ✅ Use server's devOtp if provided (dev/test mode)
                 if (res?.devOtp) {
@@ -74,6 +79,7 @@ const LoginWithPhoneScreen = ({ navigation }: any) => {
                 phone: cleanPhone,
                 generatedOtp: finalOtp,
                 artistEmail,
+                firstLogin: resFirstLogin,
             });
         } catch (err: any) {
             console.error('[OTP] Error in handleSendOTP:', err);

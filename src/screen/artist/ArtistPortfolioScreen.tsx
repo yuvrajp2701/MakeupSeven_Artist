@@ -8,11 +8,12 @@ import {
   FlatList,
   ScrollView,
   Dimensions,
-  Modal,
-  ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
 import { useFocusEffect } from '@react-navigation/native';
+import LinearGradient from 'react-native-linear-gradient';
 import ScreenView from '../../utils/ScreenView';
 import { apiCall } from '../../services/api';
 import { getToken } from '../../services/auth';
@@ -24,52 +25,6 @@ const CAROUSEL_WIDTH = width - (ITEM_MARGIN * 2);
 
 const TABS = ['About', 'Availability', 'Services', 'Reviews'];
 
-const PendingPopup = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
-  if (!visible) return null;
-
-  return (
-    <Modal
-      transparent
-      visible={visible}
-      animationType="fade"
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.popupContainer}>
-          {/* Close Button */}
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <FontAwesome name="times" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          {/* Icon - Changed from clock to file-text */}
-          <View style={styles.popupIconContainer}>
-            <FontAwesome name="file-text" size={40} color="#7B4DFF" />
-          </View>
-
-          {/* Title */}
-          <Text style={styles.popupTitle}>Profile Under Review</Text>
-
-          {/* Message */}
-          <Text style={styles.popupMessage}>
-            Your profile is currently pending approval by our admin team.
-            You can view your portfolio, but some features may be limited until your profile is approved.
-          </Text>
-
-          <Text style={styles.popupSubMessage}>
-            This usually takes 24-48 hours. We'll notify you once approved.
-          </Text>
-
-          {/* Close Button Text */}
-          <TouchableOpacity style={styles.closeButtonText} onPress={onClose}>
-            <Text style={styles.closeButtonTextStyle}>Got it</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
 const ArtistPortfolioScreen = ({ navigation }: any) => {
   const { userToken } = useAuth();
   const [activeTab, setActiveTab] = useState('About');
@@ -80,8 +35,18 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
   const [artistServices, setArtistServices] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [availability, setAvailability] = useState<any[]>([]);
-  const [showPendingPopup, setShowPendingPopup] = useState(false);
   const [isProfilePending, setIsProfilePending] = useState(false);
+
+  // Premium Overlay animation
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.12, duration: 900, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+      ])
+    ).start();
+  }, []);
 
   const sliderRef = useRef<FlatList>(null);
 
@@ -100,14 +65,11 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
         providerProfile = await apiCall('/service-providers/profile', { method: 'GET', token });
         setProfile(providerProfile);
 
-        // Check approval status and show popup if pending
-        const isApproved = providerProfile?.approvalStatus === 'APPROVED';
+        // Check approval status
         if (providerProfile?.approvalStatus === 'PENDING') {
           setIsProfilePending(true);
-          setShowPendingPopup(true);
         } else {
           setIsProfilePending(false);
-          setShowPendingPopup(false);
         }
       } catch (e) {
         console.warn('Provider profile fetch error:', e);
@@ -119,7 +81,8 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
 
         if (providerProfile?.approvalStatus === 'PENDING') {
           setIsProfilePending(true);
-          setShowPendingPopup(true);
+        } else {
+          setIsProfilePending(false);
         }
       }
 
@@ -132,32 +95,27 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
         try {
           const portfolioData = await apiCall(`/service-providers/portfolio/${spId}`, { method: 'GET', token });
           const imgs = Array.isArray(portfolioData) ? portfolioData : (portfolioData?.images || []);
+          console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>", imgs);
+
           setPortfolioImages(imgs);
         } catch (e) {
           console.warn('Portfolio fetch error:', e);
         }
       }
 
-      // 3. Fetch My Services
-      try {
-        const servicesData = await apiCall('/services/my', { method: 'GET', token });
-        const sList = Array.isArray(servicesData) ? servicesData : (servicesData?.services || servicesData?.data || []);
-        setArtistServices(sList);
-
-        // Check for pending services - only show popup if profile is not already approved
-        const isAnyServicePending = sList.some((s: any) => s.approvalStatus === 'PENDING');
-        const isApproved = profile?.approvalStatus === 'APPROVED' || providerProfile?.approvalStatus === 'APPROVED';
-        
-        if (isAnyServicePending && !isApproved) {
-          setIsProfilePending(true);
-          setShowPendingPopup(true);
+      // 3. Fetch My Services (only if approved)
+      if (!isProfilePending) {
+        try {
+          const servicesData = await apiCall('/services/my', { method: 'GET', token });
+          const sList = Array.isArray(servicesData) ? servicesData : (servicesData?.services || servicesData?.data || []);
+          setArtistServices(sList);
+        } catch (e) {
+          console.warn('Services fetch error:', e);
         }
-      } catch (e) {
-        console.warn('Services fetch error:', e);
       }
 
-      // 4. Fetch Availability (Next 7 Days)
-      if (spId) {
+      // 4. Fetch Availability (Next 7 Days) (only if approved)
+      if (spId && !isProfilePending) {
         try {
           const availData = await apiCall(`/artist-availability/availability-for-next-seven/${spId}`, { method: 'GET', token });
           const aList = Array.isArray(availData) ? availData : (availData?.data || availData?.availability || []);
@@ -167,15 +125,15 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
         }
       }
 
-      // 5. Fetch Reviews
-      try {
-        if (spId) {
+      // 5. Fetch Reviews (only if approved)
+      if (spId && !isProfilePending) {
+        try {
           const reviewsData = await apiCall(`/reviews/provider/${spId}`, { method: 'GET', token });
           const rList = Array.isArray(reviewsData) ? reviewsData : (reviewsData?.reviews || reviewsData?.data || []);
           setReviews(rList);
+        } catch (e) {
+          console.warn('Reviews fetch error:', e);
         }
-      } catch (e) {
-        console.warn('Reviews fetch error:', e);
       }
 
     } catch (error) {
@@ -185,20 +143,20 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
     }
   }, [userToken]);
 
-  // Periodically check approval status while popup is shown
+  // Periodically check approval status
   useEffect(() => {
     let intervalId: ReturnType<typeof setInterval>;
 
-    if (showPendingPopup && isProfilePending) {
+    if (isProfilePending) {
       intervalId = setInterval(async () => {
         try {
           const token = userToken || await getToken();
           if (token) {
             const providerProfile = await apiCall('/service-providers/profile', { method: 'GET', token });
             if (providerProfile?.approvalStatus !== 'PENDING') {
-              // Profile approved, close popup
+              // Profile approved, refresh data
               setIsProfilePending(false);
-              setShowPendingPopup(false);
+              fetchData();
             }
           }
         } catch (error) {
@@ -210,7 +168,7 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [showPendingPopup, isProfilePending, userToken]);
+  }, [isProfilePending, userToken]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -254,12 +212,8 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
     return { uri };
   };
 
-  const handleClosePopup = () => {
-    setShowPendingPopup(false);
-  };
-
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <ScreenView>
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.container}>
@@ -327,7 +281,6 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
               </View>
             )}
 
-
             {/* RECENT WORKS */}
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Recent works</Text>
@@ -387,7 +340,7 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
                 <View style={styles.card}>
                   <View style={styles.cardHeader}>
                     <Text style={styles.cardTitle}>About</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('profile')}>
+                    <TouchableOpacity>
                       <Text style={styles.editLink}>Edit</Text>
                     </TouchableOpacity>
                   </View>
@@ -445,6 +398,7 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
                 </TouchableOpacity>
               </>
             )}
+
             {activeTab === 'Services' && (
               <>
                 {artistServices.length > 0 ? artistServices.map((item, index) => (
@@ -476,9 +430,9 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
                 >
                   <Text style={styles.editServicesText}>Add New Service</Text>
                 </TouchableOpacity>
-
               </>
             )}
+
             {activeTab === 'Reviews' && (
               <>
                 {reviews.length > 0 ? reviews.map(review => (
@@ -523,9 +477,48 @@ const ArtistPortfolioScreen = ({ navigation }: any) => {
         </ScrollView>
       </ScreenView>
 
-      {/* Pending Popup with Close Button */}
-      <PendingPopup visible={showPendingPopup} onClose={handleClosePopup} />
-    </>
+      {/* Premium Overlay - Only show when profile is pending */}
+      {isProfilePending && (
+        <View style={styles.premiumOverlay} pointerEvents="box-none">
+          <LinearGradient
+            colors={['rgba(15,10,40,0.82)', 'rgba(30,15,70,0.96)']}
+            style={styles.premiumGradient}
+          >
+            {/* Decorative glow circles */}
+            <View style={styles.glowCircle1} />
+            <View style={styles.glowCircle2} />
+
+            {/* Badge */}
+            <View style={styles.premiumBadge}>
+              <Text style={styles.premiumBadgeText}>⏳  PENDING APPROVAL</Text>
+            </View>
+
+            {/* Animated Icon */}
+            <Animated.View style={[styles.premiumIconCircle, { transform: [{ scale: pulseAnim }] }]}>
+              <LinearGradient
+                colors={['#9B59FF', '#6C2FD9']}
+                style={styles.premiumIconGradient}
+              >
+                <Text style={{ fontSize: 44 }}>👤</Text>
+              </LinearGradient>
+            </Animated.View>
+
+            <Text style={styles.premiumTitle}>Profile Under Review</Text>
+            <Text style={styles.premiumSubtitle}>
+              Your profile is currently pending approval by our admin team.{`\n`}
+              Some features will be available once your profile is approved.
+            </Text>
+
+            {/* Feature pills */}
+            <View style={styles.featurePillsRow}>
+              <View style={styles.featurePill}><Text style={styles.featurePillText}>📋  Profile Review</Text></View>
+              <View style={styles.featurePill}><Text style={styles.featurePillText}>✅  Approval in 24-48h</Text></View>
+              <View style={styles.featurePill}><Text style={styles.featurePillText}>🎨  Portfolio Access</Text></View>
+            </View>
+          </LinearGradient>
+        </View>
+      )}
+    </View>
   );
 };
 
@@ -566,7 +559,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     resizeMode: 'cover',
   },
-
 
   editBtn: {
     position: 'absolute',
@@ -651,8 +643,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 20,
   },
-  cardTitle: { fontWeight: '500', fontSize: 20, },
-  editLink: { color: '#7B4DFF', fontSize: 17, },
+  cardTitle: { fontWeight: '500', fontSize: 20 },
+  editLink: { color: '#7B4DFF', fontSize: 17 },
   viewAll: { color: '#7B4DFF', fontSize: 12 },
 
   cardText: { fontSize: 15, color: '#6B7280', lineHeight: 24 },
@@ -740,7 +732,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#7B4DFF',
   },
-
 
   addBtn: {
     alignSelf: 'center',
@@ -855,87 +846,103 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 
-  // Modal Styles
-  modalOverlay: {
+  // Premium Overlay Styles
+  premiumOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 999,
+    elevation: 999,
+  },
+  premiumGradient: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: 32,
+    overflow: 'hidden',
   },
-  popupContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
-    width: width - 48,
-    maxWidth: 340,
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    position: 'relative',
-  },
-  closeButton: {
+  glowCircle1: {
     position: 'absolute',
-    top: 16,
-    right: 16,
-    zIndex: 1,
-    padding: 8,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: 'rgba(139, 92, 246, 0.18)',
+    top: -60,
+    right: -80,
   },
-  closeButtonText: {
-    marginTop: 16,
-    backgroundColor: '#7B4DFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    width: '100%',
+  glowCircle2: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(99, 47, 217, 0.15)',
+    bottom: 60,
+    left: -60,
   },
-  closeButtonTextStyle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(155, 89, 255, 0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(155, 89, 255, 0.5)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    marginBottom: 28,
   },
-  popupIconContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#F3EDFF',
+  premiumBadgeText: {
+    color: '#D8B4FE',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+  },
+  premiumIconCircle: {
+    marginBottom: 24,
+    shadowColor: '#9B59FF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  premiumIconGradient: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 8,
   },
-  popupTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 12,
+  premiumTitle: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.5,
+    marginBottom: 14,
     textAlign: 'center',
   },
-  popupMessage: {
-    fontSize: 14,
-    color: '#6B7280',
+  premiumSubtitle: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.65)',
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 12,
+    lineHeight: 24,
+    marginBottom: 36,
   },
-  popupSubMessage: {
-    fontSize: 13,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 8,
+  featurePillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
   },
-  popupNote: {
+  featurePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(179, 136, 255, 0.3)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+  },
+  featurePillText: {
+    color: '#C4B5FD',
     fontSize: 12,
-    color: '#7B4DFF',
-    textAlign: 'center',
-    backgroundColor: '#F3EDFF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    marginTop: 8,
+    fontWeight: '500',
   },
 });

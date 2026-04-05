@@ -145,10 +145,10 @@ const ServicesStep: React.FC<Props> = ({
                             {servicePrimaryImages.map((img, index) => (
                                 <View key={index} style={styles.primaryImageWrapper}>
                                     {typeof img === 'number' || (typeof img === 'string') || img.type?.includes('image') || img.uri || img.url ? (
-                                        <Image 
-                                            source={typeof img === 'number' ? img : { uri: typeof img === 'string' ? img : (img.uri || img.url) }} 
-                                            style={styles.primaryImageItem} 
-                                            resizeMode="cover" 
+                                        <Image
+                                            source={typeof img === 'number' ? img : { uri: typeof img === 'string' ? img : (img.uri || img.url) }}
+                                            style={styles.primaryImageItem}
+                                            resizeMode="cover"
                                         />
                                     ) : (
                                         <View style={[styles.primaryImageItem, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>
@@ -183,10 +183,10 @@ const ServicesStep: React.FC<Props> = ({
                             {serviceOtherImages.map((img, index) => (
                                 <View key={index} style={styles.gridImageWrapper}>
                                     {typeof img === 'number' || (typeof img === 'string') || img.type?.includes('image') || img.uri || img.url ? (
-                                        <Image 
-                                            source={typeof img === 'number' ? img : { uri: typeof img === 'string' ? img : (img.uri || img.url) }} 
-                                            style={styles.gridImage} 
-                                            resizeMode="cover" 
+                                        <Image
+                                            source={typeof img === 'number' ? img : { uri: typeof img === 'string' ? img : (img.uri || img.url) }}
+                                            style={styles.gridImage}
+                                            resizeMode="cover"
                                         />
                                     ) : (
                                         <View style={[styles.gridImage, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>
@@ -206,7 +206,7 @@ const ServicesStep: React.FC<Props> = ({
                         </View>
 
                         {/* Exclusive Essentials */}
-                        <View style={styles.essentialsSection}>
+                        {/* <View style={styles.essentialsSection}>
                             <View style={styles.essentialsSectionHeader}>
                                 <View>
                                     <Text style={[styles.sectionTitle, { fontSize: 15, fontWeight: '600', color: '#111827' }]}>
@@ -223,7 +223,7 @@ const ServicesStep: React.FC<Props> = ({
                                 )}
                             </View>
 
-                            {exclusiveEssentials.length === 0 ? (
+                            {/* {exclusiveEssentials.length === 0 ? (
                                 <TouchableOpacity style={styles.essentialsEmptyBox} onPress={() => { setEssentialTitle(''); setEssentialModalVisible(true); }}>
                                     <View style={styles.essentialsEmptyIcon}>
                                         <FontAwesome name="image" size={22} color="#7C3AED" />
@@ -253,8 +253,8 @@ const ServicesStep: React.FC<Props> = ({
                                         </TouchableOpacity>
                                     )}
                                 </View>
-                            )}
-                        </View>
+                            
+                        </View> */}
 
                         {/* Extra Service Info */}
                         <Text style={[styles.sectionTitle, { fontSize: 16, marginTop: 10, marginBottom: 12 }]}>Extra service information</Text>

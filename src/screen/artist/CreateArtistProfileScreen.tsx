@@ -220,6 +220,16 @@ const CreateArtistProfileScreen = () => {
           setFullName(user.name || '');
           setMobile(user.mobile || '');
           setEmail(user.email || '');
+          
+          // Load profile image from API response if available
+          if (user.profileImage) {
+            console.log('[Profile] Loading profile image from API:', user.profileImage);
+            setProfilePhoto({
+              uri: user.profileImage,
+              type: 'image/jpeg',
+              name: 'profile.jpg',
+            });
+          }
         }
 
         // Fetch Service Provider Profile to check status
@@ -263,6 +273,37 @@ const CreateArtistProfileScreen = () => {
       return () => clearTimeout(timer);
     }
   }, [showUpdateSuccess]);
+
+  // ── Update profile image ───────────────────────────────────
+  const updateProfileImage = async (token: string) => {
+    if (!profilePhoto || !profilePhoto.uri) {
+      console.log('[Profile] No profile photo to update, skipping image API call');
+      return true;
+    }
+
+    try {
+      console.log('[Profile] Updating profile image via /users/update-profile-image');
+      
+      const imageFormData = new FormData();
+      imageFormData.append('profileImage', {
+        uri: profilePhoto.uri,
+        type: profilePhoto.type || 'image/jpeg',
+        name: profilePhoto.name || 'profile.jpg',
+      } as any);
+
+      const imageRes = await apiCall('/users/update-profile-image', {
+        method: 'PATCH',
+        body: imageFormData,
+        token,
+      });
+      console.log('[Profile] Profile image updated successfully:', JSON.stringify(imageRes));
+      return true;
+    } catch (error: any) {
+      console.warn('[Profile] Profile image update failed:', error.message);
+      // Don't block the flow if image update fails
+      return false;
+    }
+  };
 
   // ── Submit profile ─────────────────────────────────────────
   const submitProfile = async () => {
@@ -384,6 +425,10 @@ const CreateArtistProfileScreen = () => {
           token,
         });
         console.log('[Profile] Success:', JSON.stringify(res));
+
+        // After main profile submission, also update profile image
+        console.log('[Profile] Main profile submitted, now updating profile image...');
+        await updateProfileImage(token);
 
         setStatus('PENDING'); // Set to pending after submission
         setShowUpdateSuccess(true); // Show success banner

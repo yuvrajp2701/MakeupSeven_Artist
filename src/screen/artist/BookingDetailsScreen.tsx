@@ -7,6 +7,22 @@ import { apiCall } from '../../services/api';
 import { getToken } from '../../services/auth';
 import { useAuth } from '../../context/AuthContext';
 
+// Helper function to format address object to string
+const formatAddress = (address: any): string => {
+  if (!address) return 'Address not available';
+  if (typeof address === 'string') return address;
+  if (typeof address === 'object') {
+    const parts = [
+      address.street,
+      address.city,
+      address.state,
+      address.pincode
+    ].filter(part => part && typeof part === 'string' && part.trim().length > 0);
+    return parts.length > 0 ? parts.join(', ') : 'Address not available';
+  }
+  return 'Address not available';
+};
+
 const BookingDetailsScreen = () => {
   const navigation = useNavigation<any>();
   const { params }: any = useRoute();
@@ -14,7 +30,7 @@ const BookingDetailsScreen = () => {
   // 🔥 booking state
   const bookingId = params._id || params.id || params.bookingId;
   const [bookingData, setBookingData] = useState<any>(params || {});
-  const [isAccepted, setIsAccepted] = useState(bookingData?.status === 'APPROVED' || bookingData?.status === 'STARTED');
+  const [isAccepted, setIsAccepted] = useState(bookingData?.status === 'APPROVED' || bookingData?.status === 'STARTED' || bookingData?.status === 'COMPLETED');
   const [loading, setLoading] = useState(false);
   const { userToken } = useAuth();
 
@@ -32,7 +48,7 @@ const BookingDetailsScreen = () => {
         const data = response?.booking || response?.data || response;
         if (data) {
           setBookingData(data);
-          setIsAccepted(data.status === 'APPROVED' || data.status === 'STARTED');
+          setIsAccepted(data.status === 'APPROVED' || data.status === 'STARTED' || data.status === 'COMPLETED');
         }
       } catch (error) {
         console.warn('Error fetching booking details:', error);
@@ -50,12 +66,14 @@ const BookingDetailsScreen = () => {
       await new Promise<void>(r => setTimeout(r, 600)); // simulate network delay
       if (newStatus === 'APPROVED' || newStatus === 'STARTED') {
         setIsAccepted(true);
+        setBookingData((prev: any) => ({ ...prev, status: newStatus }));
       } else if (newStatus === 'REJECTED' || newStatus === 'CANCELLED') {
         navigation.goBack();
       }
       setLoading(false);
       return;
     }
+
     try {
       setLoading(true);
       const token = userToken || await getToken();
@@ -75,21 +93,13 @@ const BookingDetailsScreen = () => {
       else endpoint = newStatus.toLowerCase();
 
       try {
-        console.log(`\n================ API REQUEST ================`);
-        console.log(`Endpoint: PUT /booking/${bookingId}/${endpoint}`);
-        console.log(`Current Status: ${bookingData?.status} -> New Target: ${newStatus}`);
-        console.log(`=============================================\n`);
+        console.log(`API REQUEST: PUT /booking/${bookingId}/${endpoint}`);
 
         const response = await apiCall(`/booking/${bookingId}/${endpoint}`, {
           method: 'PUT',
           token,
-          body: {} // Send empty body as per typical PUT requests unless OTP required
+          body: {} 
         });
-
-        console.log(`\n================ API RESPONSE ================`);
-        console.log(`Success! Updated booking to ${newStatus}`);
-        console.log(`Response Data:`, JSON.stringify(response, null, 2));
-        console.log(`==============================================\n`);
 
         if (newStatus === 'APPROVED' || newStatus === 'STARTED') {
           setIsAccepted(true);
@@ -101,13 +111,12 @@ const BookingDetailsScreen = () => {
         console.log(`Booking ${newStatus} success:`, response);
       } catch (err: any) {
         console.warn(`[StatusUpdate] ${endpoint} failed:`, err.message);
-        // Show the actual reason from backend to the user
         const errorMsg = err.message || `Failed to update booking to ${newStatus}`;
         Alert.alert("Booking Update Failed", errorMsg);
         throw err;
       }
     } catch (error) {
-      // already handled above
+      // already handled
     } finally {
       setLoading(false);
     }
@@ -139,18 +148,20 @@ const BookingDetailsScreen = () => {
 
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
-                  {bookingData?.name?.charAt(0) || bookingData?.customerName?.charAt(0) || 'U'}
+                  {bookingData?.user?.name?.charAt(0) || bookingData?.name?.charAt(0) || bookingData?.customerName?.charAt(0) || 'U'}
                 </Text>
               </View>
             </View>
 
-            <InfoRow icon="user" label="Customer" value={bookingData?.name || bookingData?.customerName || 'Customer'} />
-            <InfoRow icon="calendar" label="Date" value={bookingData?.date || (bookingData?.bookingDate ? new Date(bookingData.bookingDate).toLocaleDateString() : 'N/A')} />
-            <InfoRow icon="clock-o" label="Time" value={bookingData?.time || bookingData?.startTime || 'N/A'} />
+            <InfoRow icon="user" label="Customer" value={bookingData?.user?.name || bookingData?.name || bookingData?.customerName || 'Customer'} />
+            <InfoRow icon="calendar" label="Date" value={bookingData?.bookingDate || bookingData?.date || 'N/A'} />
+            <InfoRow icon="clock-o" label="Time" value={bookingData?.formattedTimeSlot || `${bookingData?.startTime || 'N/A'} - ${bookingData?.endTime || 'N/A'}`} />
+            
+            {/* FIXED ADDRESS RENDERING */}
             <InfoRow
               icon="map-marker"
               label="Location"
-              value={bookingData?.address?.street || bookingData?.address || 'N/A'}
+              value={formatAddress(bookingData?.address)}
             />
 
             {/* AMOUNT */}
@@ -161,13 +172,13 @@ const BookingDetailsScreen = () => {
 
               <View style={styles.amountTextContainer}>
                 <Text style={styles.amountLabel}>Amount</Text>
-                <Text style={styles.amountValue}>{bookingData?.price || bookingData?.totalAmount || '0'}</Text>
+                <Text style={styles.amountValue}>₹{bookingData?.totalPrice || bookingData?.price || bookingData?.totalAmount || '0'}</Text>
               </View>
             </View>
           </View>
 
           {/* ACTIONS */}
-          {!isAccepted && (
+          {bookingData?.status === 'PENDING' && (
             <View style={styles.card}>
               <View style={styles.actionRow}>
                 <TouchableOpacity
@@ -189,7 +200,6 @@ const BookingDetailsScreen = () => {
                 </TouchableOpacity>
               </View>
             </View>
-
           )}
 
           {/* CUSTOMER CONTACT (ONLY AFTER ACCEPT) */}
@@ -206,7 +216,7 @@ const BookingDetailsScreen = () => {
               </View>
 
               {/* START SERVICE */}
-              {bookingData?.status !== 'STARTED' && bookingData?.status !== 'COMPLETED' && (
+              {bookingData?.status === 'APPROVED' && (
                 <TouchableOpacity
                   style={[styles.startServiceBtn, loading && { opacity: 0.7 }]}
                   onPress={() => {
@@ -250,7 +260,6 @@ const BookingDetailsScreen = () => {
                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.startServiceText}>Complete Service</Text>}
                  </TouchableOpacity>
               )}
-
             </>
           )}
 
@@ -259,11 +268,6 @@ const BookingDetailsScreen = () => {
     </ScreenView>
   );
 };
-
-
-export default BookingDetailsScreen;
-
-/* ---------------- COMPONENT ---------------- */
 
 const InfoRow = ({ icon, label, value }: any) => (
   <View style={styles.infoRowBox}>
@@ -278,62 +282,10 @@ const InfoRow = ({ icon, label, value }: any) => (
   </View>
 );
 
-/* ---------------- STYLES ---------------- */
-
 const styles = StyleSheet.create({
-  /* START SERVICE */
-  startServiceBtn: {
-    backgroundColor: '#10B981', // green = action started
-    paddingVertical: 18,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginBottom: 30,
+  container: {
+    padding: 16,
   },
-
-  startServiceText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-
-  /* ACTION CARD */
-  actionRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-
-  acceptBtn: {
-    flex: 1,
-    backgroundColor: '#7C3AED',
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-  },
-
-  acceptText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-
-  declineOutlineBtn: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderColor: '#D1D5DB',
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-
-  declineOutlineText: {
-    color: '#6B7280',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-
-
-  /* HEADER */
   header: {
     backgroundColor: '#EEE9FF',
     flexDirection: 'row',
@@ -348,8 +300,6 @@ const styles = StyleSheet.create({
     color: '#7C3AED',
     marginLeft: 12,
   },
-
-  /* STATUS */
   statusPill: {
     alignSelf: 'center',
     backgroundColor: '#FEF3C7',
@@ -364,12 +314,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#F59E0B',
   },
-
-  container: {
-    padding: 16,
-  },
-
-  /* CARD */
   card: {
     backgroundColor: '#fff',
     borderRadius: 20,
@@ -387,7 +331,6 @@ const styles = StyleSheet.create({
     fontSize: 19,
     fontWeight: '500',
   },
-
   avatar: {
     width: 36,
     height: 36,
@@ -401,8 +344,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-
-  /* INFO ROW */
   infoRowBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -429,8 +370,6 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     marginTop: 2,
   },
-
-  /* AMOUNT */
   amountRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -461,8 +400,48 @@ const styles = StyleSheet.create({
     color: '#7C3AED',
     marginTop: 4,
   },
-
-  /* CALL */
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  acceptBtn: {
+    flex: 1,
+    backgroundColor: '#7C3AED',
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  acceptText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  declineOutlineBtn: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB',
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  declineOutlineText: {
+    color: '#6B7280',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  startServiceBtn: {
+    backgroundColor: '#10B981',
+    paddingVertical: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  startServiceText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '600',
+  },
   callBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -478,8 +457,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#7C3AED',
   },
-
-  /* DECLINE */
   declineBtn: {
     backgroundColor: '#E5E7EB',
     paddingVertical: 16,
@@ -493,3 +470,5 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
 });
+
+export default BookingDetailsScreen;

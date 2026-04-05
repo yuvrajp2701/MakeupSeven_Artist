@@ -47,10 +47,10 @@ const PortfolioStep: React.FC<Props> = ({ portfolioImages, setPortfolioImages, p
                 {portfolioImages?.map((img, index) => (
                     <View key={index} style={styles.gridImageWrapper}>
                         {typeof img === 'number' || (typeof img === 'string') || img.type?.includes('image') || img.uri || img.url ? (
-                            <Image 
-                                source={typeof img === 'number' ? img : { uri: typeof img === 'string' ? img : (img.uri || img.url) }} 
-                                style={styles.gridImage} 
-                                resizeMode="cover" 
+                            <Image
+                                source={typeof img === 'number' ? img : { uri: typeof img === 'string' ? img : (img.uri || img.url) }}
+                                style={styles.gridImage}
+                                resizeMode="cover"
                             />
                         ) : (
                             <View style={[styles.gridImage, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>

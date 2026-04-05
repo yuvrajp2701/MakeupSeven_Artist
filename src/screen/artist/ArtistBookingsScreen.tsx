@@ -1,417 +1,479 @@
-import { useNavigation } from '@react-navigation/native';
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
-  ActivityIndicator,
-  Image,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  FlatList,
 } from 'react-native';
 import FontAwesome from '@react-native-vector-icons/fontawesome';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import ScreenView from '../../utils/ScreenView';
 import { apiCall } from '../../services/api';
 import { getToken } from '../../services/auth';
+import { useAuth } from '../../context/AuthContext';
 
-const ArtistBookingsScreen = () => {
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const navigation = useNavigation<any>();
-
-  const fetchBookings = async () => {
-    try {
-      setLoading(true);
-      const token = await getToken();
-
-      if (!token) {
-        console.log('No token available, skipping fetch');
-        setBookings([]);
-        return;
-      }
-
-      const [upcomingRes, pastRes] = await Promise.all([
-        apiCall('/booking/upcoming-bookings', { method: 'GET', token }).catch(e => { console.warn('Upcoming Fetch Error', e); return null; }),
-        apiCall('/booking/past-bookings', { method: 'GET', token }).catch(e => { console.warn('Past Fetch Error', e); return null; })
-      ]);
-
-      const upcomingData = Array.isArray(upcomingRes) ? upcomingRes : (upcomingRes?.bookings || upcomingRes?.data || []);
-      const pastData = Array.isArray(pastRes) ? pastRes : (pastRes?.bookings || pastRes?.data || []);
-
-      const allBookings = [...upcomingData, ...pastData];
-      
-      // Remove duplicates just in case an active booking overlaps
-      const uniqueBookings = Array.from(new Map(allBookings.map(b => [(b._id || b.id || Math.random()), b])).values());
-
-      console.log('Fetched Bookings:', uniqueBookings.length);
-      
-      // Set the actual API data directly. 
-      // This will correctly show 'No bookings found' if the array is empty.
-      setBookings(uniqueBookings);
-    } catch (error) {
-      console.warn('Failed to fetch bookings:', error);
-      setBookings([]); // Use empty array on error instead of dummy data for production
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  React.useEffect(() => {
-    fetchBookings();
-  }, []);
-
-  const getFilteredBookings = () => {
-    const now = new Date();
-    return bookings.filter((booking: any) => {
-      const bDate = booking.bookingDate || booking.date;
-      const bookingDate = new Date(bDate);
-      if (isNaN(bookingDate.getTime())) return false;
-
-      const status = (booking.status || '').toUpperCase();
-      const isActive = ['PENDING', 'CONFIRMED', 'APPROVED', 'STARTED'].includes(status);
-      const isCompleted = ['COMPLETED', 'CANCELLED', 'REJECTED', 'CANCELLED_BY_ARTIST'].includes(status);
-
-      if (activeTab === 'upcoming') {
-        // Show future bookings OR any booking that is still active (not completed/cancelled) regardless of date
-        const isFuture = bookingDate >= now;
-        return (isFuture && !isCompleted) || isActive;
-      } else {
-        // Show past bookings that are NOT active, OR any explicitly completed/cancelled booking
-        const isPast = bookingDate < now;
-        return (isPast && !isActive) || isCompleted;
-      }
-    });
-  };
-
-  const filteredBookings = getFilteredBookings();
-
-  return (
-    <ScreenView>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={fetchBookings} />
-        }
-      >
-        <View style={styles.container}>
-
-          {/* Header */}
-          <Text style={styles.title}>Bookings</Text>
-          <Text style={styles.subTitle}>Manage your appointments</Text>
-
-          {/* Tabs */}
-          <View style={styles.tabContainer} >
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                activeTab === 'upcoming' && styles.activeTab,
-              ]}
-              onPress={() => setActiveTab('upcoming')}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === 'upcoming' && styles.activeTabText,
-                ]}
-              >
-                Upcoming ({bookings.filter(b => {
-                  const d = new Date(b.bookingDate || b.date);
-                  const status = (b.status || '').toUpperCase();
-                  const isActive = ['PENDING', 'CONFIRMED', 'APPROVED', 'STARTED'].includes(status);
-                  const isCompleted = ['COMPLETED', 'CANCELLED', 'REJECTED', 'CANCELLED_BY_ARTIST'].includes(status);
-                  return (d >= new Date() && !isCompleted) || isActive;
-                }).length})
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.tab,
-                activeTab === 'past' && styles.activeTab,
-              ]}
-              onPress={() => setActiveTab('past')}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === 'past' && styles.activeTabText,
-                ]}
-              >
-                Past ({bookings.filter(b => {
-                  const d = new Date(b.bookingDate || b.date);
-                  const status = (b.status || '').toUpperCase();
-                  const isActive = ['PENDING', 'CONFIRMED', 'APPROVED', 'STARTED'].includes(status);
-                  const isCompleted = ['COMPLETED', 'CANCELLED', 'REJECTED', 'CANCELLED_BY_ARTIST'].includes(status);
-                  return (d < new Date() && !isActive) || isCompleted;
-                }).length})
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Content */}
-          {loading ? (
-            <View style={{ marginTop: 50 }}>
-              <ActivityIndicator size="large" color="#7C3AED" />
-            </View>
-          ) : (
-            <>
-              {filteredBookings.length === 0 ? (
-                <View style={{ marginTop: 50, alignItems: 'center' }}>
-                  <Text style={{ color: '#6B7280', fontSize: 16 }}>No {activeTab} bookings found.</Text>
-                </View>
-              ) : (
-                filteredBookings.map((booking: any, index: number) => {
-                  const bDateStr = booking.bookingDate || booking.date;
-                  const bDate = new Date(bDateStr);
-
-                  return (
-                    <BookingCard
-                      key={booking.id || index}
-                      image={booking.user?.profileImage ? { uri: booking.user.profileImage } : require('../../asset/images/facial.png')}
-                      name={booking.user?.name || booking.userName || 'Unknown User'}
-                      service={booking.service?.name || booking.serviceName || 'Makeup Service'}
-                      date={bDate.toLocaleDateString()}
-                      time={bDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      address={booking.address || 'Location not specified'}
-                      price={`₹${booking.totalPrice || booking.price || booking.totalAmount || 0}`}
-                      status={booking.status || 'Pending'}
-                      onPressCard={() =>
-                        navigation.navigate('BookingDetails', {
-                          ...booking,
-                          bookingId: booking._id || booking.id,
-                          name: booking.user?.name || booking.userName || 'Unknown User',
-                          service: booking.service?.name || booking.serviceName || 'Service',
-                          date: bDate.toLocaleDateString(),
-                          time: bDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                          price: `₹${booking.totalPrice || booking.price || booking.totalAmount || 0}`,
-                          status: booking.status || 'Pending',
-                        })
-                      }
-                    />
-                  );
-                })
-              )}
-            </>
-          )}
-        </View>
-      </ScrollView>
-    </ScreenView>
-  );
+// Helper function to format address object to string
+const formatAddress = (address: any): string => {
+  if (!address) return 'Address not available';
+  if (typeof address === 'string') return address;
+  if (typeof address === 'object') {
+    const parts = [
+      address.street,
+      address.city,
+      address.state,
+      address.pincode
+    ].filter(part => part && typeof part === 'string' && part.trim().length > 0);
+    return parts.length > 0 ? parts.join(', ') : 'Address not available';
+  }
+  return 'Address not available';
 };
 
-export default ArtistBookingsScreen;
-
-/* ---------------- COMPONENT ---------------- */
-
-const getStatusColor = (status: string) => {
-  const s = (status || '').toUpperCase();
-  switch (s) {
-    case 'PENDING': return { bg: '#FEF3C7', text: '#D97706' }; // Yellow
-    case 'CONFIRMED':
-    case 'APPROVED': return { bg: '#DBEAFE', text: '#2563EB' }; // Blue
-    case 'STARTED': return { bg: '#E0E7FF', text: '#4F46E5' }; // Indigo
-    case 'COMPLETED': return { bg: '#D1FAE5', text: '#059669' }; // Green
+// Helper function to get status badge style
+const getStatusStyle = (status: string) => {
+  switch (status?.toUpperCase()) {
+    case 'PENDING':
+      return styles.statusPending;
+    case 'APPROVED':
+      return styles.statusApproved;
+    case 'STARTED':
+      return styles.statusStarted;
+    case 'COMPLETED':
+      return styles.statusCompleted;
+    case 'REJECTED':
     case 'CANCELLED':
     case 'CANCELLED_BY_ARTIST':
-    case 'REJECTED': return { bg: '#FEE2E2', text: '#DC2626' }; // Red
-    default: return { bg: '#F3F4F6', text: '#6B7280' }; // Gray
+      return styles.statusCancelled;
+    default:
+      return styles.statusPending;
   }
 };
 
-const BookingCard = ({
-  image,
-  name,
-  service,
-  date,
-  time,
-  address,
-  price,
-  status,
-  onPressCard,
-}: any) => {
-  const { bg, text } = getStatusColor(status);
+// Helper function to get status text color
+const getStatusTextStyle = (status: string) => {
+  switch (status?.toUpperCase()) {
+    case 'PENDING':
+      return styles.statusTextPending;
+    case 'APPROVED':
+      return styles.statusTextApproved;
+    case 'STARTED':
+      return styles.statusTextStarted;
+    case 'COMPLETED':
+      return styles.statusTextCompleted;
+    case 'REJECTED':
+    case 'CANCELLED':
+    case 'CANCELLED_BY_ARTIST':
+      return styles.statusTextCancelled;
+    default:
+      return styles.statusTextPending;
+  }
+};
+
+// Booking Card Component
+const BookingCard = ({ booking, onPress }: any) => {
+  // Format the address safely before rendering
+  const formattedAddress = formatAddress(booking.address);
 
   return (
     <TouchableOpacity
-      activeOpacity={0.9}
       style={styles.card}
-      onPress={onPressCard}
+      onPress={() => onPress(booking)}
+      activeOpacity={0.7}
     >
-      <Image source={image} style={styles.cardImage} />
-
-      <View style={styles.cardContent}>
-        <View style={styles.rowBetween}>
-          <Text style={styles.name}>{name}</Text>
-
-          <View style={[styles.statusBadge, { backgroundColor: bg }]}>
-            <Text style={[styles.statusText, { color: text }]}>
-              {status}
-            </Text>
-          </View>
+      <View style={styles.cardHeader}>
+        <Text style={styles.bookingId}>#{booking.bookingID || booking.id || 'N/A'}</Text>
+        <View style={[styles.statusBadge, getStatusStyle(booking.status)]}>
+          <Text style={[styles.statusText, getStatusTextStyle(booking.status)]}>
+            {booking.status || 'PENDING'}
+          </Text>
         </View>
+      </View>
 
-        <Text style={styles.service}>{service}</Text>
+      <View style={styles.customerInfo}>
+        <FontAwesome name="user" size={16} color="#7C3AED" />
+        <Text style={styles.customerName}>
+          {booking.user?.name || booking.customerName || 'Customer'}
+        </Text>
+      </View>
 
-        <View style={styles.infoRow}>
-          <FontAwesome name="calendar" size={12} color="#9CA3AF" />
-          <Text style={styles.infoText}>{date}</Text>
+      <View style={styles.serviceInfo}>
+        <FontAwesome name="briefcase" size={16} color="#7C3AED" />
+        <Text style={styles.serviceName}>
+          {booking.service?.name || 'Service'}
+        </Text>
+      </View>
 
-          <FontAwesome
-            name="clock-o"
-            size={12}
-            color="#9CA3AF"
-            style={{ marginLeft: 10 }}
-          />
-          <Text style={styles.infoText}>{time}</Text>
+      <View style={styles.addressInfo}>
+        <FontAwesome name="map-marker" size={16} color="#7C3AED" />
+        <Text style={styles.address} numberOfLines={2}>
+          {formattedAddress}
+        </Text>
+      </View>
+
+      <View style={styles.detailsRow}>
+        <View style={styles.detailItem}>
+          <FontAwesome name="calendar" size={14} color="#6B7280" />
+          <Text style={styles.detailText}>
+            {booking.bookingDate || 'N/A'}
+          </Text>
         </View>
-
-        <View style={styles.infoRow}>
-          <FontAwesome name="map-marker" size={14} color="#9CA3AF" />
-          <Text style={styles.infoText}>{address}</Text>
+        <View style={styles.detailItem}>
+          <FontAwesome name="clock-o" size={14} color="#6B7280" />
+          <Text style={styles.detailText}>
+            {booking.formattedTimeSlot || `${booking.startTime || 'N/A'} - ${booking.endTime || 'N/A'}`}
+          </Text>
         </View>
+      </View>
 
-        <View style={styles.footerRow}>
-          <Text style={styles.price}>{price}</Text>
-
-          <TouchableOpacity style={styles.callBtn} activeOpacity={0.8}>
-            <FontAwesome name="phone" size={16} color="#000" />
-          </TouchableOpacity>
-        </View>
+      <View style={styles.priceRow}>
+        <Text style={styles.priceLabel}>Total Amount:</Text>
+        <Text style={styles.priceValue}>₹{booking.totalPrice || booking.servicePrice || 0}</Text>
       </View>
     </TouchableOpacity>
   );
 };
 
-/* ---------------- STYLES ---------------- */
+// Main Screen Component
+const ArtistBookingsScreen = () => {
+  const navigation = useNavigation<any>();
+  const { userToken } = useAuth();
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('upcoming'); // upcoming, past
+
+  const fetchBookings = async (showLoading = true) => {
+    try {
+      if (showLoading) setLoading(true);
+      const token = userToken || await getToken();
+      if (!token) return;
+
+      const endpoint = activeTab === 'upcoming'
+        ? '/booking/upcoming-bookings'
+        : '/booking/past-bookings';
+
+      console.log(`Fetching ${activeTab} bookings from:`, endpoint);
+
+      const response = await apiCall(endpoint, { method: 'GET', token });
+
+      // Handle different response structures
+      let bookingsData = [];
+      if (response?.data && Array.isArray(response.data)) {
+        bookingsData = response.data;
+      } else if (response?.bookings && Array.isArray(response.bookings)) {
+        bookingsData = response.bookings;
+      } else if (Array.isArray(response)) {
+        bookingsData = response;
+      } else {
+        bookingsData = [];
+      }
+
+      console.log(`Fetched ${activeTab} Bookings:`, bookingsData.length);
+      setBookings(bookingsData);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchBookings();
+    }, [activeTab])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchBookings(false);
+  };
+
+  const handleBookingPress = (booking: any) => {
+    navigation.navigate('BookingDetails', booking);
+  };
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <FontAwesome name="calendar-check-o" size={64} color="#D1D5DB" />
+      <Text style={styles.emptyTitle}>No {activeTab} bookings</Text>
+      <Text style={styles.emptyText}>
+        {activeTab === 'upcoming'
+          ? "You don't have any upcoming bookings at the moment."
+          : "You haven't completed any bookings yet."}
+      </Text>
+    </View>
+  );
+
+  const renderHeader = () => (
+    <>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Bookings</Text>
+      </View>
+
+      {/* Tabs */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'upcoming' && styles.activeTab]}
+          onPress={() => setActiveTab('upcoming')}
+        >
+          <Text style={[styles.tabText, activeTab === 'upcoming' && styles.activeTabText]}>
+            Upcoming
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'past' && styles.activeTab]}
+          onPress={() => setActiveTab('past')}
+        >
+          <Text style={[styles.tabText, activeTab === 'past' && styles.activeTabText]}>
+            Past
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
+  if (loading && !refreshing) {
+    return (
+      <ScreenView>
+        {renderHeader()}
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#7C3AED" />
+          <Text style={styles.loaderText}>Loading bookings...</Text>
+        </View>
+      </ScreenView>
+    );
+  }
+
+  return (
+    <ScreenView>
+      <FlatList
+        data={bookings}
+        keyExtractor={(item) => item.id || item.bookingID || Math.random().toString()}
+        renderItem={({ item }) => (
+          <BookingCard booking={item} onPress={handleBookingPress} />
+        )}
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmptyState}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#7C3AED']} />
+        }
+        contentContainerStyle={styles.listContainer}
+        showsVerticalScrollIndicator={false}
+      />
+    </ScreenView>
+  );
+};
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 20,
-    paddingTop: 30,
+  listContainer: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
-
-  title: {
-    fontSize: 26,
-    fontWeight: '500',
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
   },
-
-  subTitle: {
-    fontSize: 15,
+  loaderText: {
+    marginTop: 12,
+    fontSize: 16,
     color: '#6B7280',
-    marginTop: 6,
   },
-
+  header: {
+    backgroundColor: '#EEE9FF',
+    paddingHorizontal: 26,
+    paddingTop: 62,
+    paddingBottom: 24,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#7C3AED',
+  },
   tabContainer: {
     flexDirection: 'row',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#C4B5FD',
-    marginTop: 25,
-    padding: 4,
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-
   tab: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 10,
     alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
-
   activeTab: {
-    backgroundColor: '#EDE9FE',
+    borderBottomColor: '#7C3AED',
   },
-
   tabText: {
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: '500',
     color: '#6B7280',
   },
-
   activeTabText: {
-    color: '#000',
-    fontWeight: '500',
+    color: '#7C3AED',
+    fontWeight: '600',
   },
-
   card: {
-    flexDirection: 'row',
     backgroundColor: '#fff',
-    padding: 14,
     borderRadius: 16,
-    marginTop: 20,
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 16,
     elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
-
-  cardImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 12,
-    marginRight: 12,
-  },
-
-  cardContent: {
-    flex: 1,
-  },
-
-  rowBetween: {
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 12,
   },
-
-  name: {
-    fontSize: 17,
-    fontWeight: '500',
-  },
-
-  service: {
+  bookingId: {
     fontSize: 14,
-    color: '#6B7280',
-    marginTop: 6,
+    fontWeight: '600',
+    color: '#4B5563',
   },
-
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-  },
-
-  infoText: {
-    fontSize: 13,
-    color: '#9CA3AF',
-    marginLeft: 6,
-  },
-
-  footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-  },
-
-  price: {
-    fontSize: 20,
-    fontWeight: '500',
-    color: '#7C3AED',
-  },
-
-  callBtn: {
-    marginLeft: 'auto',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
   statusBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 20,
+    borderRadius: 12,
   },
-
+  statusPending: {
+    backgroundColor: '#FEF3C7',
+  },
+  statusApproved: {
+    backgroundColor: '#D1FAE5',
+  },
+  statusStarted: {
+    backgroundColor: '#DBEAFE',
+  },
+  statusCompleted: {
+    backgroundColor: '#D1FAE5',
+  },
+  statusCancelled: {
+    backgroundColor: '#FEE2E2',
+  },
   statusText: {
     fontSize: 12,
+    fontWeight: '600',
+  },
+  statusTextPending: {
+    color: '#F59E0B',
+  },
+  statusTextApproved: {
+    color: '#10B981',
+  },
+  statusTextStarted: {
+    color: '#3B82F6',
+  },
+  statusTextCompleted: {
+    color: '#059669',
+  },
+  statusTextCancelled: {
+    color: '#EF4444',
+  },
+  customerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  customerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    flex: 1,
+  },
+  serviceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  serviceName: {
+    fontSize: 14,
+    color: '#4B5563',
+    flex: 1,
+  },
+  addressInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    gap: 8,
+  },
+  address: {
+    fontSize: 13,
+    color: '#6B7280',
+    flex: 1,
+    lineHeight: 18,
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  detailText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  priceLabel: {
+    fontSize: 14,
     fontWeight: '500',
+    color: '#4B5563',
+  },
+  priceValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#7C3AED',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
+    paddingHorizontal: 32,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
+
+export default ArtistBookingsScreen;

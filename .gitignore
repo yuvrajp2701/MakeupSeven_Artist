@@ -25,6 +25,10 @@ DerivedData
 # Android/IntelliJ
 #
 build/
+# Android build directories (including those with spaces)
+android/app/build*/
+android/app/*/build*/
+"android/app/build */"
 .idea
 .gradle
 local.properties

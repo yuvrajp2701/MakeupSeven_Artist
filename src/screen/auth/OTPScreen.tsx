@@ -33,8 +33,9 @@ const OTPScreen = ({ navigation, route }: any) => {
     const [showNameModal, setShowNameModal] = useState(false);
     const [artistName, setArtistName] = useState('');
     const [nameLoading, setNameLoading] = useState(false);
-    // temporarily store the verified OTP while waiting for name entry
+    // temporarily store the verified OTP and firstLogin status while waiting for name entry
     const verifiedOtpRef = useRef<string>('');
+    const isFirstLoginRef = useRef<boolean>(false);
 
     const inputs = useRef<Array<TextInput | null>>([]);
     const { login } = useAuth();
@@ -67,6 +68,31 @@ const OTPScreen = ({ navigation, route }: any) => {
         return Math.floor(1000 + Math.random() * 9000).toString();
     };
 
+    // ─── Update first login status API call ───────────────────────────────
+    const updateFirstLoginStatus = async (token: string) => {
+        try {
+            console.log('[Auth] 🔄 Updating first login status to false');
+            console.log('[Auth] Endpoint: /users/update-first-login-status');
+            console.log('[Auth] Method: PATCH');
+            console.log('[Auth] Token being used:', token ? `${token.substring(0, 30)}...` : 'NO TOKEN');
+            
+            const response = await apiCall('https://api.makeupseven.com/api/v1/users/update-first-login-status', {
+                method: 'PATCH',
+                token: token,
+                body: {}, // Empty body as per API spec (or you can send empty object)
+            });
+            
+            console.log('[Auth] ✅ First login status updated successfully:', response);
+            console.log('[Auth] User firstLogin status now:', response?.user?.firstLogin);
+            return true;
+        } catch (err: any) {
+            console.log('[Auth] ❌ Failed to update first login status:', err.message);
+            console.log('[Auth] Full error:', JSON.stringify(err, null, 2));
+            // Don't throw error - this is not critical for login flow
+            return false;
+        }
+    };
+
     // ─── Resend OTP ───────────────────────────────────────────────────────
     const handleResend = useCallback(async () => {
         let newOtp = generateNewOtp();
@@ -77,6 +103,8 @@ const OTPScreen = ({ navigation, route }: any) => {
         console.log('[OTP] Resending OTP for phone', phone, '— local fallback:', newOtp);
 
         let sentViaServer = false;
+        let firstLogin = false;
+
         try {
             const res = await apiCall('/auth/send-otp', {
                 method: 'POST',
@@ -87,8 +115,16 @@ const OTPScreen = ({ navigation, route }: any) => {
                 newOtp = String(res.devOtp);
                 console.log('[OTP] Resend — using server devOtp:', newOtp);
             }
+
+            // Capture firstLogin flag from response
+            firstLogin = res?.firstLogin || false;
+            isFirstLoginRef.current = firstLogin;
+
+            console.log('[OTP] 📌 firstLogin flag from server:', firstLogin);
+            console.log('[OTP] isFirstLoginRef.current set to:', isFirstLoginRef.current);
+
             sentViaServer = true;
-            console.log('[OTP] Resend via server success');
+            console.log('[OTP] Resend via server success, firstLogin:', firstLogin);
         } catch (err: any) {
             console.log('[OTP] Resend via server failed, using local OTP:', err.message);
         }
@@ -109,18 +145,37 @@ const OTPScreen = ({ navigation, route }: any) => {
         const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
         const derivedEmail = `artist_${cleanPhone}@makeupseven.com`;
 
+        console.log('[Auth] === Starting Authentication Process ===');
+        console.log('[Auth] Phone:', cleanPhone);
+        console.log('[Auth] Name provided:', name || '(empty - returning user)');
+        console.log('[Auth] isFirstLoginRef.current:', isFirstLoginRef.current);
+
         // ── Step 1: Verify OTP ─────────────────────────────────────────────
         let verifyToken: string | null = null;
         let verifiedUserRole: string | null = null;
+        let userData: any = null;
+        let verifyRes: any = null;
+
         try {
             console.log('[Auth] Calling /auth/verify-otp for mobile:', cleanPhone);
-            const verifyRes = await apiCall('/auth/verify-otp', {
+            verifyRes = await apiCall('/auth/verify-otp', {
                 method: 'POST',
                 body: { mobile: cleanPhone, otp: enteredOtp, role: 'ARTIST' },
             });
             verifyToken = verifyRes?.token || verifyRes?.data?.token || null;
             verifiedUserRole = verifyRes?.user?.role || verifyRes?.data?.user?.role || null;
-            console.log('[Auth] /auth/verify-otp returned role:', verifiedUserRole);
+            userData = verifyRes?.user || verifyRes?.data?.user || null;
+
+            console.log('[Auth] /auth/verify-otp response:', JSON.stringify(verifyRes, null, 2));
+            console.log('[Auth] Token received:', verifyToken ? 'YES' : 'NO');
+            console.log('[Auth] User role:', verifiedUserRole);
+            console.log('[Auth] User data:', userData);
+
+            // Capture firstLogin flag from verify response if provided by server
+            if (verifyRes?.firstLogin !== undefined) {
+                isFirstLoginRef.current = !!verifyRes.firstLogin;
+                console.log('[Auth] isFirstLoginRef.current updated from verify-otp response:', isFirstLoginRef.current);
+            }
         } catch (verifyErr: any) {
             console.log('[Auth] /auth/verify-otp failed:', verifyErr.message);
         }
@@ -128,17 +183,34 @@ const OTPScreen = ({ navigation, route }: any) => {
         // ── Step 2: If verify-otp gave us an ARTIST token, done ───────────
         if (verifyToken && (verifiedUserRole === 'ARTIST' || verifiedUserRole === 'SERVICE_PROVIDER')) {
             console.log('[Auth] Got ARTIST token directly from verify-otp ✅');
-            try {
-                // Update name in profile as requested
-                await apiCall('/service-providers/profile', {
-                    method: 'PATCH',
-                    token: verifyToken,
-                    body: { name: name }
-                });
-                console.log('[Auth] Profile name updated successfully');
-            } catch (e: any) {
-                console.warn('[Auth] Profile name update failed:', e.message);
+
+            // 1. Update name in profile if name is provided (first time user)
+            if (name && name.trim().length > 0) {
+                try {
+                    console.log('[Auth] Updating profile name to:', name);
+                    await apiCall('/service-providers/profile', {
+                        method: 'PATCH',
+                        token: verifyToken,
+                        body: { name: name }
+                    });
+                    console.log('[Auth] Profile name updated successfully');
+                } catch (e: any) {
+                    console.warn('[Auth] Profile name update failed:', e.message);
+                }
             }
+
+            // 2. Update first login status if needed (using the correct endpoint)
+            console.log('[Auth] Checking if first login update is needed...');
+            console.log('[Auth] isFirstLoginRef.current =', isFirstLoginRef.current);
+
+            if (isFirstLoginRef.current === true) {
+                console.log('[Auth] ✅ First login is true, calling update API...');
+                await updateFirstLoginStatus(verifyToken);
+            } else {
+                console.log('[Auth] ⏭️ First login is false, skipping update');
+            }
+
+            console.log('[Auth] Logging in user...');
             await login(verifyToken);
             return;
         }
@@ -150,7 +222,7 @@ const OTPScreen = ({ navigation, route }: any) => {
                 method: 'POST',
                 body: {
                     mobile: cleanPhone,
-                    name: name,           // ← user-entered name
+                    name: name,
                     email: derivedEmail,
                     password: 'password123',
                     role: 'ARTIST',
@@ -172,17 +244,33 @@ const OTPScreen = ({ navigation, route }: any) => {
             const token = loginRes?.token || loginRes?.data?.token;
             if (token) {
                 console.log('[Auth] Artist login success ✅');
-                try {
-                    // Update name in profile as requested
-                    await apiCall('/service-providers/profile', {
-                        method: 'PATCH',
-                        token: token,
-                        body: { name: name }
-                    });
-                    console.log('[Auth] Profile name updated successfully after login');
-                } catch (e: any) {
-                    console.warn('[Auth] Profile name update failed after login:', e.message);
+
+                // 1. Update name in profile if name is provided
+                if (name && name.trim().length > 0) {
+                    try {
+                        console.log('[Auth] Updating profile name to:', name);
+                        await apiCall('/service-providers/profile', {
+                            method: 'PATCH',
+                            token: token,
+                            body: { name: name }
+                        });
+                        console.log('[Auth] Profile name updated successfully after login');
+                    } catch (e: any) {
+                        console.warn('[Auth] Profile name update failed after login:', e.message);
+                    }
                 }
+
+                // 2. Update first login status if needed
+                console.log('[Auth] Checking if first login update is needed...');
+                console.log('[Auth] isFirstLoginRef.current =', isFirstLoginRef.current);
+
+                if (isFirstLoginRef.current === true) {
+                    console.log('[Auth] ✅ First login is true, calling update API...');
+                    await updateFirstLoginStatus(token);
+                } else {
+                    console.log('[Auth] ⏭️ First login is false, skipping update');
+                }
+
                 await login(token);
                 return;
             }
@@ -200,17 +288,33 @@ const OTPScreen = ({ navigation, route }: any) => {
             const token = mobileLoginRes?.token || mobileLoginRes?.data?.token;
             if (token) {
                 console.log('[Auth] Mobile login success ✅');
-                try {
-                    // Update name in profile as requested
-                    await apiCall('/service-providers/profile', {
-                        method: 'PATCH',
-                        token: token,
-                        body: { name: name }
-                    });
-                    console.log('[Auth] Profile name updated successfully after mobile login');
-                } catch (e: any) {
-                    console.warn('[Auth] Profile name update failed after mobile login:', e.message);
+
+                // 1. Update name in profile if name is provided
+                if (name && name.trim().length > 0) {
+                    try {
+                        console.log('[Auth] Updating profile name to:', name);
+                        await apiCall('/service-providers/profile', {
+                            method: 'PATCH',
+                            token: token,
+                            body: { name: name }
+                        });
+                        console.log('[Auth] Profile name updated successfully after mobile login');
+                    } catch (e: any) {
+                        console.warn('[Auth] Profile name update failed after mobile login:', e.message);
+                    }
                 }
+
+                // 2. Update first login status if needed
+                console.log('[Auth] Checking if first login update is needed...');
+                console.log('[Auth] isFirstLoginRef.current =', isFirstLoginRef.current);
+
+                if (isFirstLoginRef.current === true) {
+                    console.log('[Auth] ✅ First login is true, calling update API...');
+                    await updateFirstLoginStatus(token);
+                } else {
+                    console.log('[Auth] ⏭️ First login is false, skipping update');
+                }
+
                 await login(token);
                 return;
             }
@@ -221,6 +325,18 @@ const OTPScreen = ({ navigation, route }: any) => {
         // ── Step 6: Fallback — use verify-otp token even if USER role ─────
         if (verifyToken) {
             console.log('[Auth] Using verify-otp token as last resort (role may be USER)');
+
+            // Update first login status if needed
+            console.log('[Auth] Checking if first login update is needed...');
+            console.log('[Auth] isFirstLoginRef.current =', isFirstLoginRef.current);
+
+            if (isFirstLoginRef.current === true) {
+                console.log('[Auth] ✅ First login is true, calling update API...');
+                await updateFirstLoginStatus(verifyToken);
+            } else {
+                console.log('[Auth] ⏭️ First login is false, skipping update');
+            }
+
             await login(verifyToken);
             return;
         }
@@ -228,7 +344,7 @@ const OTPScreen = ({ navigation, route }: any) => {
         throw new Error('Authentication failed. Please try again or contact support.');
     };
 
-    // ─── Step 1: Verify OTP locally, then show name modal ─────────────────
+    // ─── Step 1: Verify OTP locally, then decide to show name modal or not ─
     const handleVerify = async () => {
         const enteredOtp = otp.join('');
 
@@ -245,9 +361,35 @@ const OTPScreen = ({ navigation, route }: any) => {
             return;
         }
 
-        // OTP is correct — save it and open the name modal
+        // OTP is correct — save it
         verifiedOtpRef.current = enteredOtp;
-        setShowNameModal(true);
+
+        console.log('[Auth] OTP verified successfully');
+        console.log('[Auth] isFirstLoginRef.current value:', isFirstLoginRef.current);
+
+        // Check if we need to show name modal based on firstLogin flag
+        if (isFirstLoginRef.current === true) {
+            // First login is true - show name modal
+            console.log('[Auth] First time user - showing name collection modal');
+            setShowNameModal(true);
+        } else {
+            // First login is false - directly authenticate without showing name modal
+            console.log('[Auth] Returning user - proceeding directly to authentication');
+            setLoading(true);
+            try {
+                console.log('[Auth] First login is false, proceeding without name collection');
+                // Pass empty string for returning users
+                await authenticateWithBackend(enteredOtp, '');
+            } catch (e: any) {
+                console.error('[Auth] Authentication failed:', e);
+                Alert.alert(
+                    'Login Failed',
+                    e.message || 'Something went wrong. Please try again.'
+                );
+            } finally {
+                setLoading(false);
+            }
+        }
     };
 
     // ─── Step 2: Confirm name → authenticate → go to dashboard ───────────
@@ -260,7 +402,7 @@ const OTPScreen = ({ navigation, route }: any) => {
 
         try {
             setNameLoading(true);
-            console.log('[Auth] OTP verified for phone:', phone, '— proceeding with name:', trimmedName);
+            console.log('[Auth] First time user - name provided:', trimmedName);
             await authenticateWithBackend(verifiedOtpRef.current, trimmedName);
             // login() will update userToken → AppNavigator switches to Artist screens automatically
         } catch (e: any) {
@@ -273,6 +415,15 @@ const OTPScreen = ({ navigation, route }: any) => {
             setNameLoading(false);
         }
     };
+
+    // Add useEffect to capture firstLogin from initial OTP send
+    useEffect(() => {
+        // Capture firstLogin flag if it was passed from previous screen
+        if (route.params?.firstLogin !== undefined) {
+            console.log('[Auth] Setting firstLogin from route params:', route.params.firstLogin);
+            isFirstLoginRef.current = route.params.firstLogin;
+        }
+    }, [route.params]);
 
     const isOtpComplete = otp.every(digit => digit !== '');
 
@@ -325,7 +476,6 @@ const OTPScreen = ({ navigation, route }: any) => {
                 <Text style={{ textAlign: 'center', color: Colors.primary, marginBottom: 15, fontSize: 13 }}>
                     💡 For testing purposes, please use the OTP: 1234
                 </Text>
-
 
                 {/* Timer & Resend */}
                 <View style={styles.timerRow}>

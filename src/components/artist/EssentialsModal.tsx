@@ -19,7 +19,7 @@ interface Props {
     essentialTitle: string;
     setEssentialTitle: (v: string) => void;
     onAdd: () => void;
-    pickDocument?: (onFilePicked: (file: any) => void) => void;
+    pickDocument?: (onFilesPicked: (files: any[]) => void) => void;
     essentialImage?: any;
     setEssentialImage: (img: any) => void;
 }
@@ -49,7 +49,7 @@ const EssentialsModal: React.FC<Props> = ({
                 <TouchableOpacity
                     style={styles.essentialImagePickerBox}
                     activeOpacity={0.8}
-                    onPress={() => pickDocument && pickDocument(setEssentialImage)}
+                    onPress={() => pickDocument && pickDocument((files) => setEssentialImage(files[0]))}
                 >
                     {essentialImage ? (
                         <View style={{ width: '100%', alignItems: 'center' }}>

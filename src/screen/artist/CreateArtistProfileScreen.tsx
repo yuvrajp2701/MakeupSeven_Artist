@@ -155,18 +155,20 @@ const CreateArtistProfileScreen = () => {
   };
 
   // ── Document picker ────────────────────────────────────────
-  const pickDocument = async (onFilePicked: (file: any) => void) => {
+  const pickDocument = async (onFilesPicked: (files: any[]) => void) => {
     try {
-      const [res] = await pick({
+      const results = await pick({
         type: [types.images, types.pdf],
+        allowMultiSelection: true,
       });
-      if (res) {
-        onFilePicked({
+      if (results && results.length > 0) {
+        const formattedFiles = results.map(res => ({
           uri: res.uri,
           type: res.type,
           name: res.name,
           fileName: res.name,
-        });
+        }));
+        onFilesPicked(formattedFiles);
       }
     } catch (err) {
       if (isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED) {
@@ -352,13 +354,13 @@ const CreateArtistProfileScreen = () => {
 
       // Targeted Customers (from gender)
       if (gender) {
-        formData.append('targetedCustomers', JSON.stringify([gender]));
+        formData.append('targetedCustomers', gender);
       }
 
       // Category IDs
       if (category) {
         const catId = getCategoryIdByName(category);
-        formData.append('categoryIds', JSON.stringify([catId]));
+        formData.append('categoryIds', catId);
       }
 
       // Languages
@@ -367,7 +369,7 @@ const CreateArtistProfileScreen = () => {
           .split(',')
           .map(l => l.trim())
           .filter(Boolean);
-        formData.append('languagesSpoken', JSON.stringify(langs));
+        formData.append('languagesSpoken', langs.join(','));
       }
 
       // Radius
@@ -519,7 +521,7 @@ const CreateArtistProfileScreen = () => {
           </View>
         )}
 
-        {isPending && !showUpdateSuccess && step === 0 && (
+        {/* {isPending && !showUpdateSuccess && step === 0 && (
           <View
             style={{
               backgroundColor: '#F0F9FF',
@@ -570,7 +572,7 @@ const CreateArtistProfileScreen = () => {
               </Text>
             </View>
           </View>
-        )}
+        )} */}
 
         {step === 0 && (
           <ProfileInfoStep
@@ -656,17 +658,16 @@ const CreateArtistProfileScreen = () => {
         )}
 
         {/* Save / Continue button */}
-        {!isPending && (
-          <TouchableOpacity
-            style={styles.saveButton}
-            activeOpacity={0.9}
-            onPress={handleSave}
-          >
-            <Text style={styles.saveButtonText}>
-              {step === 0 ? 'Submit' : 'Save and continue'}
-            </Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={styles.saveButton}
+          activeOpacity={0.9}
+          onPress={handleSave}
+          disabled={isApproved}
+        >
+          <Text style={styles.saveButtonText}>
+            {step === 0 ? 'Submit' : 'Save and continue'}
+          </Text>
+        </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>

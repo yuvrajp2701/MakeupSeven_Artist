@@ -48,7 +48,7 @@ interface Props {
         setValue: (val: string) => void,
         layout: { x: number; y: number; width: number; height: number }
     ) => void;
-    pickDocument?: (onFilePicked: (file: any) => void) => void;
+    pickDocument?: (onFilesPicked: (files: any[]) => void) => void;
     categoryOptions: string[];
 }
 
@@ -80,13 +80,13 @@ const ServicesStep: React.FC<Props> = ({
 
     const handleUploadPrimary = () => {
         if (pickDocument) {
-            pickDocument((file) => setServicePrimaryImages([...servicePrimaryImages, file]));
+            pickDocument((files) => setServicePrimaryImages([...servicePrimaryImages, ...files]));
         }
     };
 
     const handleUploadOther = () => {
         if (pickDocument) {
-            pickDocument((file) => setServiceOtherImages([...serviceOtherImages, file]));
+            pickDocument((files) => setServiceOtherImages([...serviceOtherImages, ...files]));
         }
     };
 

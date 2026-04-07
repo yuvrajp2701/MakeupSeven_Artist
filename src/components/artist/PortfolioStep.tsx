@@ -13,14 +13,14 @@ const STATIC_IMAGES = [
 interface Props {
     portfolioImages: any[];
     setPortfolioImages: (imgs: any[]) => void;
-    pickDocument?: (onFilePicked: (file: any) => void) => void;
+    pickDocument?: (onFilesPicked: (files: any[]) => void) => void;
 }
 
 const PortfolioStep: React.FC<Props> = ({ portfolioImages, setPortfolioImages, pickDocument }) => {
     const handleUpload = () => {
         if (pickDocument) {
-            pickDocument((file) => {
-                setPortfolioImages([...portfolioImages, file]);
+            pickDocument((files) => {
+                setPortfolioImages([...portfolioImages, ...files]);
             });
         }
     };

@@ -61,7 +61,7 @@ interface Props {
     setDocumentNumber: (v: string) => void;
     documentImages: any[];
     setDocumentImages: (v: any[]) => void;
-    pickDocument: (setter: (v: any) => void) => void;
+    pickDocument: (onFilesPicked: (files: any[]) => void) => void;
 
     // Profile Photo
     profilePhoto: any;
@@ -160,7 +160,7 @@ const ProfileInfoStep: React.FC<Props> = ({
                 onPress={(layout: any) => openDropdown(cityOptions, setCity, layout)} />
 
             <InputGroup label="Area / locality" placeholder="Enter your area or locality" value={area} onChangeText={setArea} />
-            {/* <InputGroup
+            <InputGroup
                 label="Pincode"
                 placeholder="Enter pin code"
                 value={pincode}
@@ -170,7 +170,7 @@ const ProfileInfoStep: React.FC<Props> = ({
                     else { setLatitude(null as any); setLongitude(null as any); }
                 }}
                 keyboardType="numeric"
-            /> */}
+            />
 
             {geocoding && (
                 <View style={styles.mapLoadingBox}>
@@ -292,8 +292,7 @@ const ProfileInfoStep: React.FC<Props> = ({
             <DropdownField label="Experience" value={experience} placeholder="Select your experience level"
                 onPress={(layout: any) => openDropdown(['Fresher (0-1 y)', 'Mid-level (2-5 y)', 'Senior (5+ y)'], setExperience, layout)} />
 
-            <DropdownField label="Specialization" value={specialization} placeholder="Select specialization"
-                onPress={(layout: any) => openDropdown(['Bridal Makeup', 'Party Makeup', 'Editorial'], setSpecialization, layout)} />
+            <InputGroup label="Specialization" placeholder="Enter specialization" value={specialization} onChangeText={setSpecialization} />
 
             {/* ── KYC Documents Section ── */}
             <Text style={[styles.sectionHeader, { marginTop: 28 }]}>KYC Documents</Text>
@@ -347,7 +346,7 @@ const ProfileInfoStep: React.FC<Props> = ({
                             ))}
                             <TouchableOpacity
                                 style={[styles.kycUploadBox, { width: '47%', minHeight: 100 }]}
-                                onPress={() => pickDocument((file) => setDocumentImages([...documentImages, file]))}
+                                onPress={() => pickDocument((files) => setDocumentImages([...documentImages, ...files]))}
                             >
                                 <FontAwesome name="paperclip" size={22} color="#7C3AED" />
                                 <Text style={styles.kycUploadText}>Attach File</Text>

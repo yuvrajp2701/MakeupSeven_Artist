@@ -59,12 +59,12 @@ const ArtistBottomTabNavigator = () => {
 
           return <MaterialIcons name={iconName} size={26} color={color} style={{ marginBottom: 4 }} />;
         },
-        tabBarActiveTintColor: '#000000', // Active Color
+        tabBarActiveTintColor: Colors.primary, // Active Color
         tabBarInactiveTintColor: '#9CA3AF', // Inactive Color (Gray)
         tabBarLabel: ({ focused }) => (
           <Text
             style={{
-              color: focused ? Colors.black : Colors.textSecondary,
+              color: focused ? Colors.primary : Colors.textSecondary,
               fontSize: 12,
               fontWeight: focused ? '600' : '400',
             }}

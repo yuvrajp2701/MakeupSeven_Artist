@@ -4,6 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { apiCall } from '../../services/api';
 import { getToken } from '../../services/auth';
 import { useAuth } from '../../context/AuthContext';
+import ScreenView from '../../utils/ScreenView';
 
 const FILTERS = ['All', 'Bookings', 'Payments', 'Reviews'];
 
@@ -22,7 +23,7 @@ const ArtistNotificationScreen = ({ navigation }: any) => {
 
             const filterParam = selectedFilter.toLowerCase();
             const response = await apiCall(`/notifications?filter=${filterParam}`, { method: 'GET', token });
-            
+
             let list: any[] = [];
             if (response && typeof response === 'object' && !Array.isArray(response) && (response.Today || response.Yesterday || response.Earlier)) {
                 if (response.Today?.length > 0) list.push({ title: 'Today', data: response.Today });
@@ -98,14 +99,14 @@ const ArtistNotificationScreen = ({ navigation }: any) => {
     const handleDelete = async (id: string) => {
         Alert.alert('Delete Notification', 'Are you sure you want to delete this notification?', [
             { text: 'Cancel', style: 'cancel' },
-            { 
-                text: 'Delete', 
+            {
+                text: 'Delete',
                 style: 'destructive',
                 onPress: async () => {
                     try {
                         const token = userToken || await getToken();
                         if (!token) return;
-                        
+
                         await apiCall(`/notifications/${id}`, { method: 'DELETE', token });
                         setNotifications(prev => prev.map(section => ({
                             ...section,
@@ -133,8 +134,8 @@ const ArtistNotificationScreen = ({ navigation }: any) => {
         const nId = item.id || item._id;
 
         return (
-            <TouchableOpacity 
-                style={styles.notificationCard} 
+            <TouchableOpacity
+                style={styles.notificationCard}
                 onPress={() => handleMarkRead(nId, isUnread)}
                 activeOpacity={0.7}
             >
@@ -159,69 +160,71 @@ const ArtistNotificationScreen = ({ navigation }: any) => {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#F3EFFF" />
+        <ScreenView>
+            <SafeAreaView style={styles.container}>
+                <StatusBar barStyle="dark-content" backgroundColor="#F3EFFF" />
 
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                    <Icon name="arrow-back" size={24} color="#555" />
-                </TouchableOpacity>
-                <View style={{alignItems: 'center'}}>
-                    <Text style={styles.headerTitle}>Notifications</Text>
-                    {unreadCount > 0 && <Text style={styles.unreadCountText}>{unreadCount} Unread</Text>}
+                {/* Header */}
+                <View style={styles.header}>
+                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+                        <Icon name="arrow-back" size={24} color="#555" />
+                    </TouchableOpacity>
+                    <View style={{ alignItems: 'center' }}>
+                        <Text style={styles.headerTitle}>Notifications</Text>
+                        {unreadCount > 0 && <Text style={styles.unreadCountText}>{unreadCount} Unread</Text>}
+                    </View>
+                    <TouchableOpacity style={styles.markReadButton} onPress={handleMarkAllRead}>
+                        <Icon name="done-all" size={24} color="#8855FF" />
+                    </TouchableOpacity>
                 </View>
-                <TouchableOpacity style={styles.markReadButton} onPress={handleMarkAllRead}>
-                    <Icon name="done-all" size={24} color="#8855FF" />
-                </TouchableOpacity>
-            </View>
 
-            {/* Filters */}
-            <View style={styles.filterContainer}>
-                <FlatList
-                    horizontal
-                    data={FILTERS}
-                    showsHorizontalScrollIndicator={false}
-                    keyExtractor={(item) => item}
-                    contentContainerStyle={{ paddingHorizontal: 16 }}
-                    renderItem={({ item }) => (
-                        <TouchableOpacity
-                            style={[
-                                styles.filterChip,
-                                selectedFilter === item && styles.activeFilterChip
-                            ]}
-                            onPress={() => setSelectedFilter(item)}
-                        >
-                            <Text style={[
-                                styles.filterText,
-                                selectedFilter === item && styles.activeFilterText
-                            ]}>{item}</Text>
-                        </TouchableOpacity>
+                {/* Filters */}
+                <View style={styles.filterContainer}>
+                    <FlatList
+                        horizontal
+                        data={FILTERS}
+                        showsHorizontalScrollIndicator={false}
+                        keyExtractor={(item) => item}
+                        contentContainerStyle={{ paddingHorizontal: 16 }}
+                        renderItem={({ item }) => (
+                            <TouchableOpacity
+                                style={[
+                                    styles.filterChip,
+                                    selectedFilter === item && styles.activeFilterChip
+                                ]}
+                                onPress={() => setSelectedFilter(item)}
+                            >
+                                <Text style={[
+                                    styles.filterText,
+                                    selectedFilter === item && styles.activeFilterText
+                                ]}>{item}</Text>
+                            </TouchableOpacity>
+                        )}
+                    />
+                </View>
+
+                {/* List */}
+                <SectionList
+                    sections={notifications}
+                    keyExtractor={(item, index) => (item.id || item._id || index).toString()}
+                    renderItem={renderItem}
+                    renderSectionHeader={({ section: { title } }) => (
+                        <Text style={styles.sectionHeader}>{title}</Text>
                     )}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    refreshing={loading}
+                    onRefresh={fetchNotifications}
+                    ListEmptyComponent={
+                        !loading ? (
+                            <View style={{ padding: 40, alignItems: 'center' }}>
+                                <Text style={{ color: '#999' }}>No notifications found</Text>
+                            </View>
+                        ) : null
+                    }
                 />
-            </View>
-
-            {/* List */}
-            <SectionList
-                sections={notifications}
-                keyExtractor={(item, index) => (item.id || item._id || index).toString()}
-                renderItem={renderItem}
-                renderSectionHeader={({ section: { title } }) => (
-                    <Text style={styles.sectionHeader}>{title}</Text>
-                )}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-                refreshing={loading}
-                onRefresh={fetchNotifications}
-                ListEmptyComponent={
-                    !loading ? (
-                        <View style={{ padding: 40, alignItems: 'center' }}>
-                            <Text style={{ color: '#999' }}>No notifications found</Text>
-                        </View>
-                    ) : null
-                }
-            />
-        </SafeAreaView>
+            </SafeAreaView>
+        </ScreenView>
     );
 };
 
@@ -235,7 +238,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 20,
-        paddingVertical: 16,
+        paddingVertical: 30,
         backgroundColor: '#F3EFFF',
     },
     backButton: {

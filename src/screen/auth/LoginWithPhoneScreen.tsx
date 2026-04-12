@@ -9,6 +9,8 @@ import {
     Platform,
     Alert,
     ActivityIndicator,
+    KeyboardAvoidingView,
+    ScrollView,
 } from 'react-native';
 import Colors from '../../utils/Colors';
 import { scale, verticalScale, moderateScale, hp } from '../../utils/Responsive';
@@ -90,9 +92,19 @@ const LoginWithPhoneScreen = ({ navigation }: any) => {
     };
 
     return (
-        <View style={styles.container}>
-            <Image source={require('../../asset/images/authImg.png')} style={styles.bgImage} resizeMode="cover" />
-            <View style={styles.card}>
+        <KeyboardAvoidingView
+            style={{ flex: 1, backgroundColor: Colors.secondary }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+            <ScrollView
+                contentContainerStyle={styles.container}
+                keyboardShouldPersistTaps="handled"
+                bounces={false}
+                showsVerticalScrollIndicator={false}
+            >
+                <Image source={require('../../asset/images/authImg.png')} style={styles.bgImage} resizeMode="cover" />
+                <View style={styles.card}>
                 <View style={styles.imageContainer}>
                     <Image
                         source={require('../../asset/images/logo.png')}
@@ -136,7 +148,8 @@ const LoginWithPhoneScreen = ({ navigation }: any) => {
                 </View>
 
             </View>
-        </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 };
 
@@ -144,7 +157,7 @@ export default LoginWithPhoneScreen;
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
+        flexGrow: 1,
         backgroundColor: Colors.secondary,
         justifyContent: 'flex-end',
         alignItems: 'center',
